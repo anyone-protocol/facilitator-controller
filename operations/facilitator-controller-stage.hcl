@@ -1,8 +1,8 @@
-job "operator-registry-controller-live" {
+job "facilitator-controller-stage" {
   datacenters = ["ator-fin"]
   type = "service"
 
-  group "operator-registry-controller-live-group" {
+  group "facilitator-controller-stage-group" {
     
     count = 1
 
@@ -14,26 +14,26 @@ job "operator-registry-controller-live" {
 
     network {
       mode = "bridge"
-      port "operator-registry-controller-port" {
+      port "facilitator-controller-port" {
         to = 3000
         host_network = "wireguard"
       }
     }
 
-    task "operator-registry-controller-live-service" {
+    task "facilitator-controller-stage-service" {
       driver = "docker"
       config {
-        image = "ghcr.io/anyone-protocol/operator-registry-controller:[[.deploy]]"
+        image = "ghcr.io/anyone-protocol/facilitator-controller:[[.deploy]]"
         force_pull = true
       }
 
       vault {
-        policies = ["valid-ator-live"]
+        policies = ["valid-ator-stage"]
       }
 
       template {
         data = <<EOH
-        {{with secret "kv/valid-ator/live"}}
+        {{with secret "kv/valid-ator/stage"}}
           RELAY_REGISTRY_OPERATOR_KEY="{{.Data.data.RELAY_REGISTRY_OPERATOR_KEY}}"
           DISTRIBUTION_OPERATOR_KEY="{{.Data.data.DISTRIBUTION_OPERATOR_KEY}}"
           FACILITY_OPERATOR_KEY="{{.Data.data.FACILITY_OPERATOR_KEY}}"
@@ -46,20 +46,20 @@ job "operator-registry-controller-live" {
           MAINNET_WS_URL="{{.Data.data.MAINNET_WS_URL}}"
           MAINNET_JSON_RPC="{{.Data.data.MAINNET_JSON_RPC}}"
         {{end}}
-        RELAY_REGISTRY_CONTRACT_TXID="[[ consulKey "smart-contracts/live/relay-registry-address" ]]"
-        DISTRIBUTION_CONTRACT_TXID="[[ consulKey "smart-contracts/live/distribution-address" ]]"
-        REGISTRATOR_CONTRACT_ADDRESS="[[ consulKey "registrator/sepolia/live/address" ]]"
-        FACILITY_CONTRACT_ADDRESS="[[ consulKey "facilitator/sepolia/live/address" ]]"
-        TOKEN_CONTRACT_ADDRESS="[[ consulKey "ator-token/sepolia/live/address" ]]"
-        RELAY_UP_NFT_CONTRACT_ADDRESS="[[ consulKey "relay-up-nft-contract/live/address" ]]"
-        {{- range service "validator-live-mongo" }}
-          MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/valid-ator-live-testnet"
+        RELAY_REGISTRY_CONTRACT_TXID="[[ consulKey "smart-contracts/stage/relay-registry-address" ]]"
+        DISTRIBUTION_CONTRACT_TXID="[[ consulKey "smart-contracts/stage/distribution-address" ]]"
+        REGISTRATOR_CONTRACT_ADDRESS="[[ consulKey "registrator/sepolia/stage/address" ]]"
+        FACILITY_CONTRACT_ADDRESS="[[ consulKey "facilitator/sepolia/stage/address" ]]"
+        TOKEN_CONTRACT_ADDRESS="[[ consulKey "ator-token/sepolia/stage/address" ]]"
+        RELAY_UP_NFT_CONTRACT_ADDRESS="[[ consulKey "relay-up-nft-contract/stage/address" ]]"
+        {{- range service "validator-stage-mongo" }}
+          MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/valid-ator-stage-testnet"
         {{- end }}
-        {{- range service "validator-live-redis" }}
+        {{- range service "validator-stage-redis" }}
           REDIS_HOSTNAME="{{ .Address }}"
           REDIS_PORT="{{ .Port }}"
         {{- end }}
-        {{- range service "onionoo-war-live" }}
+        {{- range service "onionoo-war-stage" }}
           ONIONOO_DETAILS_URI="http://{{ .Address }}:{{ .Port }}/details"
         {{- end }}
         UPTIME_MINIMUM_RUNNING_COUNT=16
@@ -92,12 +92,12 @@ job "operator-registry-controller-live" {
       }
 
       service {
-        name = "operator-registry-controller-live"
-        port = "operator-registry-controller-port"
+        name = "facilitator-controller-stage"
+        port = "facilitator-controller-port"
         tags = []
         
         check {
-          name     = "Live operator-registry-controller health check"
+          name     = "Stage facilitator-controller health check"
           type     = "http"
           path     = "/health"
           interval = "5s"
