@@ -5,9 +5,9 @@ import { MongooseModule } from '@nestjs/mongoose'
 
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
-import { VerificationModule } from './verification/verification.module'
-import { TasksModule } from './tasks/tasks.module'
-import { ValidationModule } from './validation/validation.module'
+import { ClusterModule } from './cluster/cluster.module'
+import { EventsModule } from './events/events.module'
+import { DistributionModule } from './distribution/distribution.module'
 
 @Module({
   imports: [
@@ -32,9 +32,9 @@ import { ValidationModule } from './validation/validation.module'
         }
       })
     }),
-    TasksModule,
-    ValidationModule,
-    VerificationModule
+    ClusterModule,
+    DistributionModule,
+    EventsModule
   ],
   controllers: [AppController],
   providers: [AppService]

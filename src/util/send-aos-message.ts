@@ -7,7 +7,7 @@ import {
 export type SendAosMessageOptions = {
   processId: string
   data?: string
-  tags?: { name: string, value: string }[]
+  tags?: { name: string; value: string }[]
   signer: ReturnType<typeof createDataItemSigner>
 }
 
@@ -27,7 +27,7 @@ export async function sendAosMessage(
         data,
         signer
       })
-  
+
       console.debug(
         `Fetching AO Message result ${messageId} from process ${processId}`
       )
@@ -35,15 +35,14 @@ export async function sendAosMessage(
         message: messageId,
         process: processId
       })
-      console.debug(`Got AO Message result ${messageId} from process ${processId}`)
+      console.debug(
+        `Got AO Message result ${messageId} from process ${processId}`
+      )
       console.dir(result, { depth: null })
 
       return { messageId, result }
     } catch (error) {
-      console.error(
-        `Error sending AO Message to process ${processId}`,
-        error
-      )
+      console.error(`Error sending AO Message to process ${processId}`, error)
 
       if (error.message.includes('500')) {
         console.debug(
@@ -56,8 +55,8 @@ export async function sendAosMessage(
         )
 
         // NB: Sleep between each attempt with exponential backoff
-        await new Promise(
-          resolve => setTimeout(resolve, 2 ** attempts * 2000)
+        await new Promise((resolve) =>
+          setTimeout(resolve, 2 ** attempts * 2000)
         )
 
         attempts++

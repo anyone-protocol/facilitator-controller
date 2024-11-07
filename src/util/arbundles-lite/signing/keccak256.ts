@@ -1,97 +1,102 @@
-/* eslint-disable @typescript-eslint/explicit-function-return-type */
-import BN from "bn.js";
-import { Buffer } from "buffer";
-import createKeccakHash from "keccak";
+import BN from 'bn.js'
+import { Buffer } from 'buffer'
+import createKeccakHash from 'keccak'
 
 export function keccak256(value: Buffer | BN | string | number) {
-  value = toBuffer(value);
-  return createKeccakHash("keccak256")
+  value = toBuffer(value)
+  return createKeccakHash('keccak256')
     .update(value as Buffer)
-    .digest();
+    .digest()
 }
 
 function toBuffer(value: any) {
   if (!Buffer.isBuffer(value)) {
     if (Array.isArray(value)) {
-      value = Buffer.from(value);
-    } else if (typeof value === "string") {
+      value = Buffer.from(value)
+    } else if (typeof value === 'string') {
       if (isHexString(value)) {
-        value = Buffer.from(padToEven(stripHexPrefix(value)), "hex");
+        value = Buffer.from(padToEven(stripHexPrefix(value)), 'hex')
       } else {
-        value = Buffer.from(value);
+        value = Buffer.from(value)
       }
-    } else if (typeof value === "number") {
-      value = intToBuffer(value);
+    } else if (typeof value === 'number') {
+      value = intToBuffer(value)
     } else if (value === null || value === undefined) {
-      value = Buffer.allocUnsafe(0);
+      value = Buffer.allocUnsafe(0)
     } else if (BN.isBN(value)) {
-      value = value.toArrayLike(Buffer);
+      value = value.toArrayLike(Buffer)
     } else if (value.toArray) {
       // converts a BN to a Buffer
-      value = Buffer.from(value.toArray());
+      value = Buffer.from(value.toArray())
     } else {
-      throw new Error("invalid type");
+      throw new Error('invalid type')
     }
   }
 
-  return value;
+  return value
 }
 
 function isHexString(value: any, length?: number) {
-  if (typeof value !== "string" || !value.match(/^0x[0-9A-Fa-f]*$/)) {
-    return false;
+  if (typeof value !== 'string' || !value.match(/^0x[0-9A-Fa-f]*$/)) {
+    return false
   }
 
   if (length && value.length !== 2 + 2 * length) {
-    return false;
+    return false
   }
 
-  return true;
+  return true
 }
 
 function padToEven(value: any) {
-  if (typeof value !== "string") {
-    throw new Error(`while padding to even, value must be string, is currently ${typeof value}, while padToEven.`);
+  if (typeof value !== 'string') {
+    throw new Error(
+      `while padding to even, value must be string, is currently ${typeof value}, while padToEven.`
+    )
   }
 
   if (value.length % 2) {
-    value = `0${value}`;
+    value = `0${value}`
   }
 
-  return value;
+  return value
 }
 
 function stripHexPrefix(value: any) {
-  if (typeof value !== "string") {
-    return value;
+  if (typeof value !== 'string') {
+    return value
   }
 
-  return isHexPrefixed(value) ? value.slice(2) : value;
+  return isHexPrefixed(value) ? value.slice(2) : value
 }
 
 function isHexPrefixed(value: any) {
-  if (typeof value !== "string") {
-    throw new Error("value must be type 'string', is currently type " + typeof value + ", while checking isHexPrefixed.");
+  if (typeof value !== 'string') {
+    throw new Error(
+      "value must be type 'string', is currently type " +
+        typeof value +
+        ', while checking isHexPrefixed.'
+    )
   }
 
-  return value.startsWith("0x");
+  return value.startsWith('0x')
 }
 
 function intToBuffer(i: number) {
-  const hex = intToHex(i);
-  return Buffer.from(padToEven(hex.slice(2)), "hex");
+  const hex = intToHex(i)
+  return Buffer.from(padToEven(hex.slice(2)), 'hex')
 }
 
 function intToHex(i: number) {
-  const hex = i.toString(16);
-  return `0x${hex}`;
+  const hex = i.toString(16)
+  return `0x${hex}`
 }
 
-if (typeof window !== "undefined") {
-  (window as any).keccak256 = keccak256;
+if (typeof window !== 'undefined') {
+  ;(window as any).keccak256 = keccak256
 }
 
-export default keccak256;
+export default keccak256
 
 export const exportForTesting = {
   intToBuffer,
@@ -100,5 +105,5 @@ export const exportForTesting = {
   stripHexPrefix,
   padToEven,
   isHexString,
-  toBuffer,
-};
+  toBuffer
+}

@@ -1,1 +1,1 @@
-export type Base64URLString = string;
+export type Base64URLString = string

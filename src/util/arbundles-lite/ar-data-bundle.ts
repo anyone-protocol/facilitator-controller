@@ -1,9 +1,9 @@
-import getSignatureData from "./ar-data-base";
-import { longTo32ByteArray } from "./utils";
-import type DataItem from "./DataItem";
-import Bundle from "./Bundle";
-import type { Signer } from "./signing/Signer";
-import { getCryptoDriver } from "./utils";
+import getSignatureData from './ar-data-base'
+import { longTo32ByteArray } from './utils'
+import type DataItem from './DataItem'
+import Bundle from './Bundle'
+import type { Signer } from './signing/Signer'
+import { getCryptoDriver } from './utils'
 
 /**
  * Unbundles a transaction into an Array of DataItems.
@@ -19,7 +19,7 @@ import { getCryptoDriver } from "./utils";
  * @param txData
  */
 export function unbundleData(txData: Buffer): Bundle {
-  return new Bundle(txData);
+  return new Bundle(txData)
 }
 
 /**
@@ -29,31 +29,38 @@ export function unbundleData(txData: Buffer): Bundle {
  * @param dataItems
  * @param signer
  */
-export async function bundleAndSignData(dataItems: DataItem[], signer: Signer): Promise<Bundle> {
-  const headers = new Uint8Array(64 * dataItems.length);
+export async function bundleAndSignData(
+  dataItems: DataItem[],
+  signer: Signer
+): Promise<Bundle> {
+  const headers = new Uint8Array(64 * dataItems.length)
 
   const binaries = await Promise.all(
     dataItems.map(async (d, index) => {
       // Sign DataItem
-      const id = d.isSigned() ? d.rawId : await sign(d, signer);
+      const id = d.isSigned() ? d.rawId : await sign(d, signer)
       // Create header array
-      const header = new Uint8Array(64);
+      const header = new Uint8Array(64)
       // Set offset
-      header.set(longTo32ByteArray(d.getRaw().byteLength), 0);
+      header.set(longTo32ByteArray(d.getRaw().byteLength), 0)
       // Set id
-      header.set(id, 32);
+      header.set(id, 32)
       // Add header to array of headers
-      headers.set(header, 64 * index);
+      headers.set(header, 64 * index)
       // Convert to array for flattening
-      return d.getRaw();
-    }),
+      return d.getRaw()
+    })
   ).then((a) => {
-    return Buffer.concat(a);
-  });
+    return Buffer.concat(a)
+  })
 
-  const buffer = Buffer.concat([Buffer.from(longTo32ByteArray(dataItems.length)), Buffer.from(headers), binaries]);
+  const buffer = Buffer.concat([
+    Buffer.from(longTo32ByteArray(dataItems.length)),
+    Buffer.from(headers),
+    binaries
+  ])
 
-  return new Bundle(buffer);
+  return new Bundle(buffer)
 }
 
 /**
@@ -63,13 +70,16 @@ export async function bundleAndSignData(dataItems: DataItem[], signer: Signer): 
  * @param signer
  * @returns signings - signature and id in byte-arrays
  */
-export async function getSignatureAndId(item: DataItem, signer: Signer): Promise<{ signature: Buffer; id: Buffer }> {
-  const signatureData = await getSignatureData(item);
+export async function getSignatureAndId(
+  item: DataItem,
+  signer: Signer
+): Promise<{ signature: Buffer; id: Buffer }> {
+  const signatureData = await getSignatureData(item)
 
-  const signatureBytes = await signer.sign(signatureData);
-  const idBytes = await getCryptoDriver().hash(signatureBytes);
+  const signatureBytes = await signer.sign(signatureData)
+  const idBytes = await getCryptoDriver().hash(signatureBytes)
 
-  return { signature: Buffer.from(signatureBytes), id: Buffer.from(idBytes) };
+  return { signature: Buffer.from(signatureBytes), id: Buffer.from(idBytes) }
 }
 
 /**
@@ -79,7 +89,7 @@ export async function getSignatureAndId(item: DataItem, signer: Signer): Promise
  * @param jwk
  */
 export async function sign(item: DataItem, signer: Signer): Promise<Buffer> {
-  const { signature, id } = await getSignatureAndId(item, signer);
-  item.getRaw().set(signature, 2);
-  return id;
+  const { signature, id } = await getSignatureAndId(item, signer)
+  item.getRaw().set(signature, 2)
+  return id
 }

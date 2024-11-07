@@ -32,8 +32,7 @@ export default [{
         sourceType: "module",
 
         parserOptions: {
-            project: "tsconfig.json",
-            tsconfigRootDir: "/home/jim/dev/ator/relay-registry-operator",
+            project: "tsconfig.json"
         },
     },
 
