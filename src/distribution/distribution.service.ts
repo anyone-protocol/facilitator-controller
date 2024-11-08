@@ -54,7 +54,8 @@ export class DistributionService {
       throw new Error('Missing DRE_HOSTNAME')
     }
 
-    this.distributionDreUri = `${dreHostname}?id=${distributionContractTxId}`
+    this.distributionDreUri =
+      `${dreHostname}/contract?id=${distributionContractTxId}`
 
     this.logger.log(
       `Initialized distribution contract: ${this.distributionDreUri}`
@@ -69,7 +70,7 @@ export class DistributionService {
       
       if (this.dreState) {
           return {
-              address: address,
+              address,
               amount: this.dreState?.claimable[address] || '0'
           }
       } else {
@@ -86,7 +87,7 @@ export class DistributionService {
     }
   }
 
-  private async refreshDreState(forced: boolean = false) {
+  public async refreshDreState(forced: boolean = false) {
     const now = Date.now()
     if (
       forced ||

@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing'
 import { DistributionService } from './distribution.service'
 import { ConfigModule } from '@nestjs/config'
 import { HttpModule } from '@nestjs/axios'
+import { Logger } from '@nestjs/common'
 
 describe('DistributionService', () => {
   let service: DistributionService
@@ -11,7 +12,7 @@ describe('DistributionService', () => {
     module = await Test.createTestingModule({
       imports: [ConfigModule.forRoot(), HttpModule],
       providers: [DistributionService]
-    }).compile()
+    }).setLogger(new Logger()).compile()
 
     service = module.get<DistributionService>(DistributionService)
   })
@@ -26,11 +27,14 @@ describe('DistributionService', () => {
     expect(service).toBeDefined()
   })
 
-  // Skipped tests are part of implemented spec, but skipped for now as expensive testing of logs/e2e
-  it.skip('should attempt to retry failed transactions for a distribution.', () => {})
-  it.skip('should not finalize the distribution until all transactions succeed.', () => {})
-  it.skip('should warn about distributions that are locked', () => {})
-  it.skip('should warn about account funds depleting within a month', () => {})
-  it.skip('should maintain distribution continuity between reboots', () => {})
-  it.skip('should maintain distribution rhythm between reboots', () => {})
+  it('should fetch distribution state from dre', async () => {
+    await service.refreshDreState()
+  })
+
+  it('should get allocation from distribution state', async () => {
+    const address = '0x692cE30c014D7d8EFdb7cd73c4b4835b84EE8365'
+    const allocation = await service.getAllocation(address)
+
+    expect(allocation).toBeDefined()
+  })
 })

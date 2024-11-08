@@ -10,6 +10,18 @@ import {
   RequestingUpdateEvent,
   RequestingUpdateEventSchema
 } from './schemas/requesting-update-event'
+import {
+  AllocationUpdatedEvent,
+  AllocationUpdatedEventSchema
+} from './schemas/allocation-updated-event'
+import { EventsDiscoveryService } from './events-discovery.service'
+import {
+  DiscoverFacilitatorEventsQueue
+} from './processors/discover-facilitator-events-queue'
+import {
+  EventsDiscoveryServiceState,
+  EventsDiscoveryServiceStateSchema
+} from './schemas/events-discovery-service-state'
 
 @Module({
   imports: [
@@ -20,11 +32,30 @@ import {
       streams: { events: { maxLen: 2000 } }
     }),
     BullModule.registerFlowProducer({ name: 'facilitator-updates-flow' }),
+    BullModule.registerQueue({
+      name: 'discover-facilitator-events-queue',
+      streams: { events: { maxLen: 1000 } }
+    }),
+    BullModule.registerFlowProducer({
+      name: 'discover-facilitator-events-flow'
+    }),
     MongooseModule.forFeature([
+      {
+        name: AllocationUpdatedEvent.name,
+        schema: AllocationUpdatedEventSchema
+      },
+      {
+        name: EventsDiscoveryServiceState.name,
+        schema: EventsDiscoveryServiceStateSchema
+      },
       { name: RequestingUpdateEvent.name, schema: RequestingUpdateEventSchema }
     ])
   ],
-  providers: [EventsService, FacilitatorUpdatesQueue],
-  exports: [EventsService]
+  providers: [
+    EventsService,
+    EventsDiscoveryService,
+    FacilitatorUpdatesQueue,
+    DiscoverFacilitatorEventsQueue
+  ]
 })
 export class EventsModule {}

@@ -12,7 +12,7 @@ export class RequestingUpdateEvent {
   @Prop({ type: String, required: true })
   blockHash: string
 
-  @Prop({ type: String, required: true })
+  @Prop({ type: String, required: true, index: true, unique: true })
   transactionHash: string
 
   @Prop({ type: String, required: true })

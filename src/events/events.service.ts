@@ -12,7 +12,7 @@ import {
 } from './dto/recover-update-allocation-data'
 import { RewardAllocationData } from './dto/reward-allocation-data'
 import { ClusterService } from '../cluster/cluster.service'
-import { FACILITATOR_EVENTS, facilitatorABI } from './abi/facilitator'
+import { facilitatorABI } from './abi/facilitator'
 import { RequestingUpdateEvent } from './schemas/requesting-update-event'
 
 @Injectable()
@@ -58,9 +58,7 @@ export class EventsService implements OnApplicationBootstrap {
     @InjectQueue('facilitator-updates-queue')
     public facilitatorUpdatesQueue: Queue,
     @InjectFlowProducer('facilitator-updates-flow')
-    public facilitatorUpdatesFlow: FlowProducer,
-    @InjectModel(RequestingUpdateEvent.name)
-    private readonly requestingUpdateEventModel: Model<RequestingUpdateEvent>
+    public facilitatorUpdatesFlow: FlowProducer
   ) {
     this.isLive = this.config.get<string>('IS_LIVE', { infer: true })
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
@@ -246,7 +244,7 @@ export class EventsService implements OnApplicationBootstrap {
     }
   }
 
-  private async enqueueUpdateAllocation(account: string) {
+  public async enqueueUpdateAllocation(account: string) {
     await this.facilitatorUpdatesFlow.add({
       name: 'update-allocation',
       queueName: 'facilitator-updates-queue',
@@ -330,102 +328,6 @@ export class EventsService implements OnApplicationBootstrap {
             this.onRequestingUpdateEvent.bind(this)
           )
         }
-      }
-    }
-  }
-
-  public async unsubscribeFromFacilitator() {
-    await this.facilitatorContract.off('RequestingUpdate')
-  }
-
-  private async getQueryStartBlock() {
-    // TODO -> use last known good block if available
-    return Number.parseInt(
-      this.config.get<string>('FACILITY_CONTRACT_DEPLOYED_BLOCK', '0')
-    )
-  }
-
-  public async discoverPastEvents() {
-    const startBlock = await this.getQueryStartBlock()
-
-    // TODO -> match allocation updated (debugging below) to requesting update
-
-    const allAllocationUpdatedFilter = this.facilitatorContract.filters[
-      FACILITATOR_EVENTS.AllocationUpdated
-    ]()
-    const allAllocationUpdatedEvents = await this.facilitatorContract.queryFilter(
-      allAllocationUpdatedFilter,
-      startBlock
-    ) as ethers.EventLog[]
-    console.log(`Got ${allAllocationUpdatedEvents.length} AllocationUpdated events`)
-    console.log('allAllocationUpdatedEvents', allAllocationUpdatedEvents.map(evt => ({ tx: evt.transactionHash, address: evt.args[0] })))
-
-    const requestingUpdateFilter = this.facilitatorContract.filters[
-      FACILITATOR_EVENTS.RequestingUpdate
-    ]()
-    const requestingUpdateEvents = await this.facilitatorContract.queryFilter(
-      requestingUpdateFilter,
-      startBlock
-    ) as ethers.EventLog[]
-
-    console.log(`Got ${requestingUpdateEvents.length} RequestingUpdate events`)
-    console.log(
-      'requestingUpdateEvents',
-      requestingUpdateEvents.map(evt => ({ tx: evt.transactionHash, address: evt.args[0] }))
-    )
-
-    for (const requestingUpdateEvent of requestingUpdateEvents) {
-      const requestingAddress = requestingUpdateEvent.args[0]
-      const requestingUpdateEventDoc =
-        await this.requestingUpdateEventModel.findOne({
-          transactionHash: requestingUpdateEvent.transactionHash
-        })
-          ?? await this.requestingUpdateEventModel.create({
-            blockNumber: requestingUpdateEvent.blockNumber,
-            blockHash: requestingUpdateEvent.blockHash,
-            transactionHash: requestingUpdateEvent.transactionHash,
-            requestingAddress
-          })
-
-      if (requestingUpdateEventDoc.fulfilled) {
-        console.log(
-          `RequestingUpdate [${requestingUpdateEventDoc.transactionHash}]`
-            + ` was already fulfilled`
-            + ` [${
-              requestingUpdateEventDoc.allocationUpdatedEventTransactionHash
-            }]`
-        )
-
-        continue
-      }
-
-      const allocationUpdatedFilter = this.facilitatorContract.filters[
-        FACILITATOR_EVENTS.AllocationUpdated
-      ](requestingAddress)
-      const allocationUpdatedEvents = await this.facilitatorContract
-        .queryFilter(
-          allocationUpdatedFilter,
-          requestingUpdateEvent.blockNumber
-        ) as ethers.EventLog[]
-
-      if (allocationUpdatedEvents.length > 0) {
-        requestingUpdateEventDoc.fulfilled = true
-        requestingUpdateEventDoc.allocationUpdatedEventTransactionHash =
-          allocationUpdatedEvents[0].transactionHash
-        console.log(
-          `RequestingUpdate [${requestingUpdateEventDoc.transactionHash}]`
-            + ` was fulfilled`
-            + ` [${
-              requestingUpdateEventDoc.allocationUpdatedEventTransactionHash
-            }]`
-        )
-        await requestingUpdateEventDoc.save()
-      } else {
-        console.log(
-          `RequestingUpdate [${requestingUpdateEventDoc.transactionHash}]`
-          + ` was not fulfilled, enqueueing UpdateAllocation`
-        )
-        await this.enqueueUpdateAllocation(requestingAddress)
       }
     }
   }

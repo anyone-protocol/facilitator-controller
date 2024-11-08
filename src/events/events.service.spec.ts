@@ -29,7 +29,7 @@ describe('EventsService', () => {
           name: 'facilitator-updates-flow'
         }),
         MongooseModule.forRoot(
-          'mongodb://localhost/facilitator-controller-events-service-tests',
+          'mongodb://localhost/facilitator-controller-events-service-tests'
         ),
         MongooseModule.forFeature([
           {
@@ -48,21 +48,10 @@ describe('EventsService', () => {
   })
 
   afterEach(async () => {
-    await service.unsubscribeFromFacilitator()
     await module.close()
   })
 
   it('should be defined', () => {
     expect(service).toBeDefined()
-  })
-
-  describe('Discovering past events', () => {
-    it('Discovers past events', async () => {
-      try {
-        await service.discoverPastEvents()
-      } catch (e) {
-        console.error('caught error in test', e)
-      }
-    })
   })
 })
