@@ -13,6 +13,44 @@ export const facilitatorABI = [
     type: 'event'
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "_account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_value",
+        "type": "uint256"
+      }
+    ],
+    "name": "AllocationClaimed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "_account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "_value",
+        "type": "uint256"
+      }
+    ],
+    "name": "AllocationUpdated",
+    "type": "event"
+  },
+  {
     inputs: [
       {
         internalType: 'address',
@@ -36,3 +74,11 @@ export const facilitatorABI = [
     type: 'function'
   }
 ]
+
+export const FACILITATOR_EVENTS = {
+  AllocationUpdated: 'AllocationUpdated',
+  AllocationClaimed: 'AllocationClaimed',
+  GasBudgetUpdated: 'GasBudgetUpdated',
+  RequestingUpdate: 'RequestingUpdate'
+}
+export type FacilitatorEvent = keyof typeof FACILITATOR_EVENTS

@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { firstValueFrom, catchError } from 'rxjs'
-import { Contract, LoggerFactory, Warp, WarpFactory } from 'warp-contracts'
 import { ConfigService } from '@nestjs/config'
 import { AxiosError } from 'axios'
 import { HttpService } from '@nestjs/axios'
@@ -10,7 +9,6 @@ import { RewardAllocationData } from './dto/reward-allocation-data'
 import {
   DreDistributionResponse
 } from './interfaces/dre-relay-registry-response'
-import { Claimable } from './interfaces/distribution'
 
 @Injectable()
 export class DistributionService {
@@ -19,9 +17,6 @@ export class DistributionService {
   private isLive?: string
 
   public static readonly maxDistributionRetries = 6
-
-  private distributionWarp: Warp
-  private distributionContract: Contract<DistributionState>
 
   private distributionDreUri: string
   private dreState: DistributionState | undefined
@@ -38,8 +33,6 @@ export class DistributionService {
     }>,
     private readonly httpService: HttpService
   ) {
-    LoggerFactory.INST.logLevel('error')
-
     this.isLive = config.get<string>('IS_LIVE', { infer: true })
 
     this.logger.log(
@@ -52,64 +45,43 @@ export class DistributionService {
     )
 
     if (!distributionContractTxId) {
-      throw new Error('Missing distribution contract txid!')
+      throw new Error('Missing DISTRIBUTION_CONTRACT_TXID')
     }
 
+    const dreHostname = this.config.get<string>('DRE_HOSTNAME', { infer: true })
+
+    if (!dreHostname) {
+      throw new Error('Missing DRE_HOSTNAME')
+    }
+
+    this.distributionDreUri = `${dreHostname}?id=${distributionContractTxId}`
+
     this.logger.log(
-      `Initialized distribution contract: ${distributionContractTxId}`
+      `Initialized distribution contract: ${this.distributionDreUri}`
     )
-
-    this.distributionWarp = WarpFactory.forMainnet({
-      inMemory: true,
-      dbLocation: '-distribution'
-    })
-
-    //         this.distributionWarp.use(
-    //             new StateUpdatePlugin(
-    //                 distributionContractTxId,
-    //                 this.distributionWarp,
-    //             ),
-    //         )
-
-    //         const dreHostname = this.config.get<string>('DRE_HOSTNAME', {
-    //             infer: true,
-    //         })
-
-    //         this.distributionDreUri = `${dreHostname}?id=${distributionContractTxId}`
-
-    //         this.distributionContract = this.distributionWarp
-    //             .contract<DistributionState>(distributionContractTxId)
-    //             .setEvaluationOptions({
-    //                 remoteStateSyncEnabled: true,
-    //                 remoteStateSyncSource: dreHostname ?? 'dre-1.warp.cc',
-    //             })
   }
 
   public async getAllocation(
-    address: string
+    address: string,
   ): Promise<RewardAllocationData | undefined> {
     try {
-      const response = await this.distributionContract.viewState<
-        Claimable,
-        string
-      >({
-        function: 'claimable',
-        address: address
-      })
-
-      if (response.result == undefined) {
-        this.logger.error(
-          `Failed to fetch distribution state: ${response.errorMessage}`
-        )
-        return undefined
+      await this.refreshDreState()
+      
+      if (this.dreState) {
+          return {
+              address: address,
+              amount: this.dreState?.claimable[address] || '0'
+          }
       } else {
-        return {
-          address: address,
-          amount: response.result
-        }
+        this.logger.error(
+          `Failed to fetch distribution state: DRE state missing`
+        )
+
+        return undefined
       }
     } catch (error) {
       this.logger.error(`Exception in getAllocation:`, error.stack)
+
       return undefined
     }
   }

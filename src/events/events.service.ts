@@ -4,12 +4,16 @@ import { Queue, FlowProducer } from 'bullmq'
 import { ConfigService } from '@nestjs/config'
 import BigNumber from 'bignumber.js'
 import { ethers, AddressLike } from 'ethers'
+import { InjectModel } from '@nestjs/mongoose'
+import { Model } from 'mongoose'
 
-import { RecoverUpdateAllocationData } from './dto/recover-update-allocation-data'
+import {
+  RecoverUpdateAllocationData
+} from './dto/recover-update-allocation-data'
 import { RewardAllocationData } from './dto/reward-allocation-data'
 import { ClusterService } from '../cluster/cluster.service'
-
-import { facilitatorABI } from './abi/facilitator'
+import { FACILITATOR_EVENTS, facilitatorABI } from './abi/facilitator'
+import { RequestingUpdateEvent } from './schemas/requesting-update-event'
 
 @Injectable()
 export class EventsService implements OnApplicationBootstrap {
@@ -29,8 +33,6 @@ export class EventsService implements OnApplicationBootstrap {
   }
 
   private jsonRpc: string | undefined
-  private infuraApiKey: string | undefined
-  private infuraApiSecret: string | undefined
   private infuraNetwork: string | undefined
   private infuraWsUrl: string | undefined
 
@@ -46,6 +48,7 @@ export class EventsService implements OnApplicationBootstrap {
     private readonly config: ConfigService<{
       FACILITY_CONTRACT_ADDRESS: string
       FACILITY_OPERATOR_KEY: string
+      FACILITY_CONTRACT_DEPLOYED_BLOCK: string
       JSON_RPC: string
       IS_LIVE: string
       INFURA_NETWORK: string
@@ -55,7 +58,9 @@ export class EventsService implements OnApplicationBootstrap {
     @InjectQueue('facilitator-updates-queue')
     public facilitatorUpdatesQueue: Queue,
     @InjectFlowProducer('facilitator-updates-flow')
-    public facilitatorUpdatesFlow: FlowProducer
+    public facilitatorUpdatesFlow: FlowProducer,
+    @InjectModel(RequestingUpdateEvent.name)
+    private readonly requestingUpdateEventModel: Model<RequestingUpdateEvent>
   ) {
     this.isLive = this.config.get<string>('IS_LIVE', { infer: true })
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
@@ -89,7 +94,8 @@ export class EventsService implements OnApplicationBootstrap {
     )
 
     this.logger.log(
-      `Initializing events service (IS_LIVE: ${this.isLive}, FACILITATOR: ${this.facilitatorAddress})`
+      `Initializing events service (IS_LIVE: ${this.isLive}, `
+        + `FACILITATOR: ${this.facilitatorAddress})`
     )
   }
 
@@ -112,7 +118,8 @@ export class EventsService implements OnApplicationBootstrap {
         )
       } else {
         this.logger.warn(
-          'Missing FACILITY_CONTRACT_ADDRESS, not subscribing to Facilitator EVM events'
+          'Missing FACILITY_CONTRACT_ADDRESS, '
+            + 'not subscribing to Facilitator EVM events'
         )
       }
     } else {
@@ -126,7 +133,8 @@ export class EventsService implements OnApplicationBootstrap {
       retries: EventsService.maxUpdateAllocationRetries
     }
     this.logger.log(
-      `Attempting to recover updateAllocation job with ${recoverData.retries} retries for ${recoverData.address}`
+      `Attempting to recover updateAllocation job with ${recoverData.retries} `
+        + `retries for ${recoverData.address}`
     )
     this.facilitatorUpdatesQueue.add(
       'recover-update-allocation',
@@ -141,7 +149,8 @@ export class EventsService implements OnApplicationBootstrap {
       retries: recoverData.retries - 1
     }
     this.logger.log(
-      `Retry updateAllocation job with ${recoverData.retries} retries for ${recoverData.address}`
+      `Retry updateAllocation job with ${recoverData.retries} retries for `
+        + `${recoverData.address}`
     )
     this.facilitatorUpdatesQueue.add(
       'recover-update-allocation',
@@ -154,7 +163,8 @@ export class EventsService implements OnApplicationBootstrap {
     recoverData: RecoverUpdateAllocationData
   ) {
     this.logger.error(
-      `Failed recovering the update of allocation for ${recoverData.address} with amount ${recoverData.amount}`
+      `Failed recovering the update of allocation for ${recoverData.address} `
+        + `with amount ${recoverData.amount}`
     )
   }
 
@@ -199,7 +209,8 @@ export class EventsService implements OnApplicationBootstrap {
             const isWarning = this.checkForInternalWarnings(updateError.reason)
             if (isWarning) {
               this.logger.error(
-                `UpdateAllocation needs manual intervention: ${updateError.reason}`
+                `UpdateAllocation needs manual intervention: `
+                  + `${updateError.reason}`
               )
               return false
             }
@@ -235,7 +246,53 @@ export class EventsService implements OnApplicationBootstrap {
     }
   }
 
-  private async subscribeToFacilitator() {
+  private async enqueueUpdateAllocation(account: string) {
+    await this.facilitatorUpdatesFlow.add({
+      name: 'update-allocation',
+      queueName: 'facilitator-updates-queue',
+      opts: EventsService.jobOpts,
+      children: [
+        {
+          name: 'get-current-rewards',
+          queueName: 'facilitator-updates-queue',
+          opts: EventsService.jobOpts,
+          data: account
+        }
+      ]
+    })
+  }
+
+  private async onRequestingUpdateEvent(account: AddressLike) {
+    if (this.cluster.isTheOne()) {
+      let accountString: string
+      if (account instanceof Promise) {
+        accountString = await account
+      } else if (ethers.isAddressable(account)) {
+        accountString = await account.getAddress()
+      } else {
+        accountString = account
+      }
+
+      if (accountString != undefined) {
+        this.logger.log(
+          `Starting rewards update for ${accountString}`
+        )
+        await this.enqueueUpdateAllocation(accountString)
+      } else {
+        this.logger.error(
+          'Trying to request facility update but missing '
+            + 'address in data'
+        )
+      }
+    } else {
+      this.logger.debug(
+        'Not the one, skipping starting rewards update... '
+          + 'should be started somewhere else'
+      )
+    }
+  }
+
+  public async subscribeToFacilitator() {
     if (this.jsonRpc == undefined) {
       this.logger.error('Missing JSON_RPC. Skipping facilitator subscription')
     } else {
@@ -250,11 +307,14 @@ export class EventsService implements OnApplicationBootstrap {
         )
         if (this.facilitatorAddress == undefined) {
           this.logger.error(
-            'Missing FACILITY_CONTRACT_ADDRESS. Skipping facilitator subscription'
+            'Missing FACILITY_CONTRACT_ADDRESS. '
+              + 'Skipping facilitator subscription'
           )
         } else {
           this.logger.log(
-            `Subscribing to the Facilitator contract ${this.facilitatorAddress} with ${this.facilitatorOperator.address}...`
+            `Subscribing to the Facilitator contract `
+              + `${this.facilitatorAddress} with `
+              + `${this.facilitatorOperator.address}...`
           )
 
           this.facilitatorContract = new ethers.Contract(
@@ -267,47 +327,105 @@ export class EventsService implements OnApplicationBootstrap {
           )
           this.facilitatorContract.on(
             'RequestingUpdate',
-            async (_account: AddressLike) => {
-              if (this.cluster.isTheOne()) {
-                let accountString: string
-                if (_account instanceof Promise) {
-                  accountString = await _account
-                } else if (ethers.isAddressable(_account)) {
-                  accountString = await _account.getAddress()
-                } else {
-                  accountString = _account
-                }
-
-                if (accountString != undefined) {
-                  this.logger.log(
-                    `Starting rewards update for ${accountString}`
-                  )
-                  await this.facilitatorUpdatesFlow.add({
-                    name: 'update-allocation',
-                    queueName: 'facilitator-updates-queue',
-                    opts: EventsService.jobOpts,
-                    children: [
-                      {
-                        name: 'get-current-rewards',
-                        queueName: 'facilitator-updates-queue',
-                        opts: EventsService.jobOpts,
-                        data: accountString
-                      }
-                    ]
-                  })
-                } else {
-                  this.logger.error(
-                    'Trying to request facility update but missing address in data'
-                  )
-                }
-              } else {
-                this.logger.debug(
-                  'Not the one, skipping starting rewards update... should be started somewhere else'
-                )
-              }
-            }
+            this.onRequestingUpdateEvent.bind(this)
           )
         }
+      }
+    }
+  }
+
+  public async unsubscribeFromFacilitator() {
+    await this.facilitatorContract.off('RequestingUpdate')
+  }
+
+  private async getQueryStartBlock() {
+    // TODO -> use last known good block if available
+    return Number.parseInt(
+      this.config.get<string>('FACILITY_CONTRACT_DEPLOYED_BLOCK', '0')
+    )
+  }
+
+  public async discoverPastEvents() {
+    const startBlock = await this.getQueryStartBlock()
+
+    // TODO -> match allocation updated (debugging below) to requesting update
+
+    const allAllocationUpdatedFilter = this.facilitatorContract.filters[
+      FACILITATOR_EVENTS.AllocationUpdated
+    ]()
+    const allAllocationUpdatedEvents = await this.facilitatorContract.queryFilter(
+      allAllocationUpdatedFilter,
+      startBlock
+    ) as ethers.EventLog[]
+    console.log(`Got ${allAllocationUpdatedEvents.length} AllocationUpdated events`)
+    console.log('allAllocationUpdatedEvents', allAllocationUpdatedEvents.map(evt => ({ tx: evt.transactionHash, address: evt.args[0] })))
+
+    const requestingUpdateFilter = this.facilitatorContract.filters[
+      FACILITATOR_EVENTS.RequestingUpdate
+    ]()
+    const requestingUpdateEvents = await this.facilitatorContract.queryFilter(
+      requestingUpdateFilter,
+      startBlock
+    ) as ethers.EventLog[]
+
+    console.log(`Got ${requestingUpdateEvents.length} RequestingUpdate events`)
+    console.log(
+      'requestingUpdateEvents',
+      requestingUpdateEvents.map(evt => ({ tx: evt.transactionHash, address: evt.args[0] }))
+    )
+
+    for (const requestingUpdateEvent of requestingUpdateEvents) {
+      const requestingAddress = requestingUpdateEvent.args[0]
+      const requestingUpdateEventDoc =
+        await this.requestingUpdateEventModel.findOne({
+          transactionHash: requestingUpdateEvent.transactionHash
+        })
+          ?? await this.requestingUpdateEventModel.create({
+            blockNumber: requestingUpdateEvent.blockNumber,
+            blockHash: requestingUpdateEvent.blockHash,
+            transactionHash: requestingUpdateEvent.transactionHash,
+            requestingAddress
+          })
+
+      if (requestingUpdateEventDoc.fulfilled) {
+        console.log(
+          `RequestingUpdate [${requestingUpdateEventDoc.transactionHash}]`
+            + ` was already fulfilled`
+            + ` [${
+              requestingUpdateEventDoc.allocationUpdatedEventTransactionHash
+            }]`
+        )
+
+        continue
+      }
+
+      const allocationUpdatedFilter = this.facilitatorContract.filters[
+        FACILITATOR_EVENTS.AllocationUpdated
+      ](requestingAddress)
+      const allocationUpdatedEvents = await this.facilitatorContract
+        .queryFilter(
+          allocationUpdatedFilter,
+          requestingUpdateEvent.blockNumber
+        ) as ethers.EventLog[]
+
+      if (allocationUpdatedEvents.length > 0) {
+        requestingUpdateEventDoc.fulfilled = true
+        requestingUpdateEventDoc.allocationUpdatedEventTransactionHash =
+          allocationUpdatedEvents[0].transactionHash
+        console.log(
+          `RequestingUpdate [${requestingUpdateEventDoc.transactionHash}]`
+            + ` was fulfilled`
+            + ` [${
+              requestingUpdateEventDoc.allocationUpdatedEventTransactionHash
+            }]`
+        )
+        await requestingUpdateEventDoc.save()
+      } else {
+        console.log(
+          `RequestingUpdate [${requestingUpdateEventDoc.transactionHash}]`
+          + ` was not fulfilled, enqueueing UpdateAllocation`
+        )
+        await this.enqueueUpdateAllocation(requestingAddress)
       }
     }
   }

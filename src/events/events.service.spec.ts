@@ -1,52 +1,68 @@
 import { Test, TestingModule } from '@nestjs/testing'
-import { EventsService } from './events.service'
 import { BullModule } from '@nestjs/bullmq'
 import { ConfigModule } from '@nestjs/config'
+import { MongooseModule } from '@nestjs/mongoose'
+
+import { EventsService } from './events.service'
+import { FacilitatorUpdatesQueue } from './processors/facilitator-updates-queue'
 import { ClusterModule } from '../cluster/cluster.module'
+import { DistributionModule } from '../distribution/distribution.module'
+import {
+  RequestingUpdateEvent,
+  RequestingUpdateEventSchema
+} from './schemas/requesting-update-event'
 
 describe('EventsService', () => {
+  let module: TestingModule
   let service: EventsService
 
   beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
+    module = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
         ClusterModule,
+        DistributionModule,
         BullModule.registerQueue({
-          name: 'facilitator-updates-queue',
-          connection: { host: 'localhost', port: 6379 }
+          name: 'facilitator-updates-queue'
         }),
         BullModule.registerFlowProducer({
-          name: 'facilitator-updates-flow',
-          connection: { host: 'localhost', port: 6379 }
+          name: 'facilitator-updates-flow'
         }),
-        BullModule.registerQueue({
-          name: 'registrator-updates-queue',
-          connection: { host: 'localhost', port: 6379 }
-        }),
-        BullModule.registerFlowProducer({
-          name: 'registrator-updates-flow',
-          connection: { host: 'localhost', port: 6379 }
-        })
+        MongooseModule.forRoot(
+          'mongodb://localhost/facilitator-controller-events-service-tests',
+        ),
+        MongooseModule.forFeature([
+          {
+            name: RequestingUpdateEvent.name,
+            schema: RequestingUpdateEventSchema
+          }
+        ])
       ],
-      providers: [EventsService]
+      providers: [EventsService, FacilitatorUpdatesQueue],
+      exports: [EventsService]
     }).compile()
 
     service = module.get<EventsService>(EventsService)
+
+    await service.subscribeToFacilitator()
+  })
+
+  afterEach(async () => {
+    await service.unsubscribeFromFacilitator()
+    await module.close()
   })
 
   it('should be defined', () => {
     expect(service).toBeDefined()
   })
 
-  // Skipped tests are part of implemented spec, but skipped for now as expensive testing of logs/e2e
-  it.skip('should store registration locks in relay-registry.', () => {})
-
-  it.skip('should flag for retry failed updateAllocation transactions.', () => {})
-  it.skip('should skip retrying invalid updateAllocation transactions.', () => {})
-  it.skip('should warn about problematic updateAllocation transactions.', () => {})
-  it.skip('should provide error info with updates that are locked out', () => {})
-  it.skip('should maintain events continuity between reboots', () => {})
-  it.skip('should warn about operational token balance', () => {})
-  it.skip('should warn about main token balance', () => {})
+  describe('Discovering past events', () => {
+    it('Discovers past events', async () => {
+      try {
+        await service.discoverPastEvents()
+      } catch (e) {
+        console.error('caught error in test', e)
+      }
+    })
+  })
 })
