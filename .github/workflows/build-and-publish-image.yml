@@ -1,5 +1,5 @@
 
-name: Build & Publish Operator Registry Controller Image
+name: Build & Publish Facilitator Controller Image
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     tags:
       - v*
 env:
-  IMAGE_NAME: operator-registry-controller
+  IMAGE_NAME: facilitator-controller
 
 jobs:
   push:
