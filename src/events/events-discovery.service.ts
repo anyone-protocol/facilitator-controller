@@ -20,12 +20,13 @@ import { ClusterService } from '../cluster/cluster.service'
 import {
   DiscoverFacilitatorEventsQueue
 } from './processors/discover-facilitator-events-queue'
-import { EventsDiscoveryServiceState } from './schemas/events-discovery-service-state'
+import {
+  EventsDiscoveryServiceState
+} from './schemas/events-discovery-service-state'
+import { EvmProviderService } from '../evm-provider/evm-provider.service'
 
 @Injectable()
-export class EventsDiscoveryService
-  implements OnApplicationBootstrap, OnApplicationShutdown
-{
+export class EventsDiscoveryService implements OnApplicationBootstrap {
   private readonly logger = new Logger(EventsDiscoveryService.name)
 
   private static readonly removeOnComplete = true
@@ -38,9 +39,6 @@ export class EventsDiscoveryService
 
   private isLive?: string
   private doClean?: string
-
-  private infuraNetwork?: string
-  private infuraWsUrl?: string
   private facilitatorAddress?: string
 
   private provider: ethers.WebSocketProvider
@@ -58,9 +56,9 @@ export class EventsDiscoveryService
       FACILITY_CONTRACT_ADDRESS: string
       FACILITY_CONTRACT_DEPLOYED_BLOCK: string
       IS_LIVE: string
-      INFURA_NETWORK: string
-      INFURA_WS_URL: string
+      DO_CLEAN: string
     }>,
+    private readonly evmProviderService: EvmProviderService,
     private readonly cluster: ClusterService,
     private readonly eventsService: EventsService,
     @InjectQueue('discover-facilitator-events-queue')
@@ -77,19 +75,6 @@ export class EventsDiscoveryService
   ) {
     this.isLive = this.config.get<string>('IS_LIVE', { infer: true })
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
-
-    this.infuraNetwork = this.config.get<string>(
-      'INFURA_NETWORK',
-      { infer: true }
-    )
-    if (!this.infuraNetwork) {
-      throw new Error('INFURA_NETWORK is not set!')
-    }
-
-    this.infuraWsUrl = this.config.get<string>('INFURA_WS_URL', { infer: true })
-    if (!this.infuraWsUrl) {
-      throw new Error('INFURA_WS_URL is not set!')
-    }
 
     this.facilitatorAddress = this.config.get<string>(
       'FACILITY_CONTRACT_ADDRESS',
@@ -110,11 +95,6 @@ export class EventsDiscoveryService
       throw new Error('FACILITY_CONTRACT_DEPLOYED_BLOCK is NaN!')
     }
 
-    this.provider = new ethers.WebSocketProvider(
-      this.infuraWsUrl,
-      this.infuraNetwork
-    )
-
     this.facilitatorContract = new ethers.Contract(
       this.facilitatorAddress,
       facilitatorABI,
@@ -128,6 +108,8 @@ export class EventsDiscoveryService
   }
 
   async onApplicationBootstrap() {
+    this.evmProviderService.attachWebSocketProvider(this.provider)
+
     if (this.cluster.isTheOne()) {
       this.logger.log('Bootstrapping')
       const eventsDiscoveryServiceState =
@@ -164,20 +146,6 @@ export class EventsDiscoveryService
     } else {
       this.logger.debug('Not the one, so skipping event subscriptions')
     }
-  }
-
-  async onApplicationShutdown() {
-    const waitForWebsocketAndDestroy = () => {
-      setTimeout(() => {
-        if (this.provider.websocket.readyState) {
-          this.provider.destroy()
-        } else {
-          waitForWebsocketAndDestroy()
-        }
-      }, 5)
-    }
-
-    waitForWebsocketAndDestroy()
   }
 
   public async discoverRequestingUpdateEvents(from?: ethers.BlockTag) {

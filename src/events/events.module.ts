@@ -22,9 +22,11 @@ import {
   EventsDiscoveryServiceState,
   EventsDiscoveryServiceStateSchema
 } from './schemas/events-discovery-service-state'
+import { EvmProviderModule } from '../evm-provider/evm-provider.module'
 
 @Module({
   imports: [
+    EvmProviderModule,
     ClusterModule,
     DistributionModule,
     BullModule.registerQueue({
