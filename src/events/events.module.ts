@@ -15,9 +15,7 @@ import {
   AllocationUpdatedEventSchema
 } from './schemas/allocation-updated-event'
 import { EventsDiscoveryService } from './events-discovery.service'
-import {
-  DiscoverFacilitatorEventsQueue
-} from './processors/discover-facilitator-events-queue'
+import { DiscoverFacilitatorEventsQueue } from './processors/discover-facilitator-events-queue'
 import {
   EventsDiscoveryServiceState,
   EventsDiscoveryServiceStateSchema

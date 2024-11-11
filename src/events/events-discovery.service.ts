@@ -1,15 +1,10 @@
 import { InjectFlowProducer, InjectQueue } from '@nestjs/bullmq'
-import {
-  Injectable,
-  Logger,
-  OnApplicationBootstrap,
-  OnApplicationShutdown
-} from '@nestjs/common'
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { InjectModel } from '@nestjs/mongoose'
 import { FlowProducer, Queue } from 'bullmq'
 import { ethers } from 'ethers'
-import { uniq } from 'lodash'
+import { sortBy, uniqBy } from 'lodash'
 import { Model, Types as MongooseTypes } from 'mongoose'
 
 import { FACILITATOR_EVENTS, facilitatorABI } from './abi/facilitator'
@@ -17,12 +12,8 @@ import { RequestingUpdateEvent } from './schemas/requesting-update-event'
 import { AllocationUpdatedEvent } from './schemas/allocation-updated-event'
 import { EventsService } from './events.service'
 import { ClusterService } from '../cluster/cluster.service'
-import {
-  DiscoverFacilitatorEventsQueue
-} from './processors/discover-facilitator-events-queue'
-import {
-  EventsDiscoveryServiceState
-} from './schemas/events-discovery-service-state'
+import { DiscoverFacilitatorEventsQueue } from './processors/discover-facilitator-events-queue'
+import { EventsDiscoveryServiceState } from './schemas/events-discovery-service-state'
 import { EvmProviderService } from '../evm-provider/evm-provider.service'
 
 @Injectable()
@@ -48,7 +39,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   private state: {
     _id?: MongooseTypes.ObjectId
     isDiscovering: boolean
-    lastDiscoveredBlock?: number
+    lastSafeCompleteBlock?: number
   } = { isDiscovering: false }
 
   constructor(
@@ -66,8 +57,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     @InjectFlowProducer('discover-facilitator-events-flow')
     public discoverFacilitatorEventsFlow: FlowProducer,
     @InjectModel(EventsDiscoveryServiceState.name)
-    private readonly eventsDiscoveryServiceStateModel:
-      Model<EventsDiscoveryServiceState>,
+    private readonly eventsDiscoveryServiceStateModel: Model<EventsDiscoveryServiceState>,
     @InjectModel(AllocationUpdatedEvent.name)
     private readonly allocationUpdatedEventModel: Model<AllocationUpdatedEvent>,
     @InjectModel(RequestingUpdateEvent.name)
@@ -85,10 +75,9 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     }
 
     const facilitatorContractDeployedBlock = Number.parseInt(
-      this.config.get<string>(
-        'FACILITY_CONTRACT_DEPLOYED_BLOCK',
-        { infer: true }
-      )
+      this.config.get<string>('FACILITY_CONTRACT_DEPLOYED_BLOCK', {
+        infer: true
+      })
     )
     this.facilitatorContractDeployedBlock = facilitatorContractDeployedBlock
     if (Number.isNaN(facilitatorContractDeployedBlock)) {
@@ -102,8 +91,8 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     )
 
     this.logger.log(
-      `Initializing events service (IS_LIVE: ${this.isLive}, `
-        + `FACILITATOR: ${this.facilitatorAddress})`
+      `Initializing events service (IS_LIVE: ${this.isLive}, ` +
+        `FACILITATOR: ${this.facilitatorAddress})`
     )
   }
 
@@ -142,7 +131,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
           await this.enqueueDiscoverFacilitatorEventsFlow(0)
           this.logger.log('Queued immediate discovery of facilitator events')
         }
-      }      
+      }
     } else {
       this.logger.debug('Not the one, so skipping event subscriptions')
     }
@@ -152,24 +141,24 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     const fromBlock = from || this.facilitatorContractDeployedBlock
 
     this.logger.log(
-      `Discovering ${FACILITATOR_EVENTS.RequestingUpdate} events`
-        + ` from block ${fromBlock.toString()}`
+      `Discovering ${FACILITATOR_EVENTS.RequestingUpdate} events` +
+        ` from block ${fromBlock.toString()}`
     )
 
-    const filter = this.facilitatorContract.filters[
-      FACILITATOR_EVENTS.RequestingUpdate
-    ]()
-    const events = await this.facilitatorContract.queryFilter(
+    const filter =
+      this.facilitatorContract.filters[FACILITATOR_EVENTS.RequestingUpdate]()
+    const events = (await this.facilitatorContract.queryFilter(
       filter,
       fromBlock
-    ) as ethers.EventLog[]
+    )) as ethers.EventLog[]
 
     this.logger.log(
-      `Found ${events.length} RequestingUpdate events`
-        + ` since block ${fromBlock.toString()}`
+      `Found ${events.length} RequestingUpdate events` +
+        ` since block ${fromBlock.toString()}`
     )
 
-    let knownEvents = 0, newEvents = 0
+    let knownEvents = 0,
+      newEvents = 0
     for (const evt of events) {
       const knownEvent = await this.requestingUpdateEventModel.findOne({
         eventName: FACILITATOR_EVENTS.RequestingUpdate,
@@ -190,10 +179,10 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     }
 
     this.logger.log(
-      `Stored ${newEvents} newly discovered`
-        + ` ${FACILITATOR_EVENTS.RequestingUpdate} events`
-        + ` and skipped storing ${knownEvents} previously known`
-        + ` out of ${events.length} total`
+      `Stored ${newEvents} newly discovered` +
+        ` ${FACILITATOR_EVENTS.RequestingUpdate} events` +
+        ` and skipped storing ${knownEvents} previously known` +
+        ` out of ${events.length} total`
     )
   }
 
@@ -201,24 +190,24 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     const fromBlock = from || this.facilitatorContractDeployedBlock
 
     this.logger.log(
-      `Discovering ${FACILITATOR_EVENTS.AllocationUpdated} events`
-        + ` from block ${fromBlock.toString()}`
+      `Discovering ${FACILITATOR_EVENTS.AllocationUpdated} events` +
+        ` from block ${fromBlock.toString()}`
     )
 
-    const filter = this.facilitatorContract.filters[
-      FACILITATOR_EVENTS.AllocationUpdated
-    ]()
-    const events = await this.facilitatorContract.queryFilter(
+    const filter =
+      this.facilitatorContract.filters[FACILITATOR_EVENTS.AllocationUpdated]()
+    const events = (await this.facilitatorContract.queryFilter(
       filter,
       fromBlock
-    ) as ethers.EventLog[]
+    )) as ethers.EventLog[]
 
     this.logger.log(
-      `Found ${events.length} ${FACILITATOR_EVENTS.AllocationUpdated} events`
-        + ` since block ${fromBlock.toString()}`
+      `Found ${events.length} ${FACILITATOR_EVENTS.AllocationUpdated} events` +
+        ` since block ${fromBlock.toString()}`
     )
 
-    let knownEvents = 0, newEvents = 0
+    let knownEvents = 0,
+      newEvents = 0
     for (const evt of events) {
       const knownEvent = await this.allocationUpdatedEventModel.findOne({
         eventName: FACILITATOR_EVENTS.AllocationUpdated,
@@ -239,35 +228,33 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     }
 
     this.logger.log(
-      `Stored ${newEvents} newly discovered`
-        + ` ${FACILITATOR_EVENTS.AllocationUpdated} events`
-        + ` and skipped storing ${knownEvents} previously known`
-        + ` out of ${events.length} total`
+      `Stored ${newEvents} newly discovered` +
+        ` ${FACILITATOR_EVENTS.AllocationUpdated} events` +
+        ` and skipped storing ${knownEvents} previously known` +
+        ` out of ${events.length} total`
     )
   }
 
-  public async matchDiscoveredFacilitatorEvents() {
+  public async matchDiscoveredFacilitatorEvents(currentBlock: number) {
     this.logger.log('Matching RequestingUpdate to AllocationUpdated events')
 
-    const unfulfilledRequestingUpdateEvents = await this
-      .requestingUpdateEventModel
-      .find({ fulfilled: false })
+    const unfulfilledRequestingUpdateEvents =
+      await this.requestingUpdateEventModel.find({ fulfilled: false })
 
     this.logger.log(
-      `Found ${unfulfilledRequestingUpdateEvents.length}`
-        + ` unfulfilled RequestingUpdate events`
+      `Found ${unfulfilledRequestingUpdateEvents.length}` +
+        ` unfulfilled RequestingUpdate events`
     )
 
     let matchedCount = 0
     const unmatchedEvents: typeof unfulfilledRequestingUpdateEvents = []
     for (const unfulfilledEvent of unfulfilledRequestingUpdateEvents) {
-      const subsequentAllocationUpdatedEventForAddress = await this
-        .allocationUpdatedEventModel
-        .findOne({
+      const subsequentAllocationUpdatedEventForAddress =
+        await this.allocationUpdatedEventModel.findOne({
           blockNumber: { $gt: unfulfilledEvent.blockNumber },
           requestingAddress: unfulfilledEvent.requestingAddress
         })
-      
+
       if (subsequentAllocationUpdatedEventForAddress) {
         unfulfilledEvent.allocationUpdatedEventTransactionHash =
           subsequentAllocationUpdatedEventForAddress.transactionHash
@@ -279,27 +266,38 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       }
     }
 
-    const unmatchedTuples = uniq(
-      unmatchedEvents.map(
-        ({ requestingAddress, transactionHash }) =>
-          ({ requestingAddress, transactionHash })
-      )
+    const unmatchedToQueue = sortBy(
+      uniqBy(
+        unmatchedEvents.map(
+          ({ requestingAddress, transactionHash, blockNumber }) => ({
+            requestingAddress,
+            transactionHash,
+            blockNumber
+          })
+        ),
+        'requestingAddress'
+      ),
+      'blockNumber'
     )
-    for (const { requestingAddress, transactionHash } of unmatchedTuples) {
+
+    for (const { requestingAddress, transactionHash } of unmatchedToQueue) {
       await this.eventsService.enqueueUpdateAllocation(
         requestingAddress,
         transactionHash
       )
     }
 
-    const duplicateAddresses = unmatchedEvents.length
-      - unmatchedTuples.length
+    const duplicateAddresses = unmatchedEvents.length - unmatchedToQueue.length
+    const lastSafeCompleteBlock =
+      unmatchedToQueue.at(0)?.blockNumber || currentBlock
 
     this.logger.log(
-      `Matched ${matchedCount} RequestingUpdate to AllocationUpdated events`
-        + ` and enqueued ${unmatchedTuples.length}`
-        + ` UpdateAllocation jobs (${duplicateAddresses} duplicate addresses)`
+      `Matched ${matchedCount} RequestingUpdate to AllocationUpdated events` +
+        ` and enqueued ${unmatchedToQueue.length}` +
+        ` UpdateAllocation jobs (${duplicateAddresses} duplicate addresses)`
     )
+
+    await this.setLastSafeCompleteBlockNumber(lastSafeCompleteBlock)
   }
 
   public async enqueueDiscoverFacilitatorEventsFlow(
@@ -313,25 +311,26 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     const currentBlock = await this.provider.getBlockNumber()
 
     await this.discoverFacilitatorEventsFlow.add({
-      name: DiscoverFacilitatorEventsQueue
-        .JOB_MATCH_DISCOVERED_FACILITATOR_EVENTS,
+      name: DiscoverFacilitatorEventsQueue.JOB_MATCH_DISCOVERED_FACILITATOR_EVENTS,
       queueName: 'discover-facilitator-events-queue',
       opts: EventsDiscoveryService.jobOpts,
       data: { currentBlock },
-      children: [{
-        name: DiscoverFacilitatorEventsQueue
-          .JOB_DISCOVER_ALLOCATION_UPDATED_EVENTS,
-        queueName: 'discover-facilitator-events-queue',
-        opts: EventsDiscoveryService.jobOpts,
-        data: { currentBlock },
-        children: [{
-          name: DiscoverFacilitatorEventsQueue
-            .JOB_DISCOVER_REQUESTING_UPDATE_EVENTS,
+      children: [
+        {
+          name: DiscoverFacilitatorEventsQueue.JOB_DISCOVER_ALLOCATION_UPDATED_EVENTS,
           queueName: 'discover-facilitator-events-queue',
-          opts: { delay: delayJob, ...EventsDiscoveryService.jobOpts },
-          data: { currentBlock }
-        }]
-      }]
+          opts: EventsDiscoveryService.jobOpts,
+          data: { currentBlock },
+          children: [
+            {
+              name: DiscoverFacilitatorEventsQueue.JOB_DISCOVER_REQUESTING_UPDATE_EVENTS,
+              queueName: 'discover-facilitator-events-queue',
+              opts: { delay: delayJob, ...EventsDiscoveryService.jobOpts },
+              data: { currentBlock }
+            }
+          ]
+        }
+      ]
     })
   }
 
@@ -339,14 +338,14 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     await this.eventsDiscoveryServiceStateModel.updateMany({}, this.state)
   }
 
-  public async setLastDiscoveredBlockNumber(blockNumber: number) {
-    this.logger.log(`Setting last discovered block number ${blockNumber}`)
+  private async setLastSafeCompleteBlockNumber(blockNumber: number) {
+    this.logger.log(`Setting last safe complete block number ${blockNumber}`)
 
-    this.state.lastDiscoveredBlock = blockNumber
+    this.state.lastSafeCompleteBlock = blockNumber
     await this.updateServiceState()
   }
 
-  public async getLastDiscoveredBlockNumber() {
-    return this.state.lastDiscoveredBlock
+  public async getLastSafeCompleteBlockNumber() {
+    return this.state.lastSafeCompleteBlock
   }
 }

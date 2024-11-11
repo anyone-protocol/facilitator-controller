@@ -42,7 +42,9 @@ describe('EventsDiscoveryService', () => {
       ],
       providers: [EventsDiscoveryService],
       exports: [EventsDiscoveryService]
-    }).setLogger(new Logger()).compile()
+    })
+      .setLogger(new Logger())
+      .compile()
     service = module.get<EventsDiscoveryService>(EventsDiscoveryService)
   })
 

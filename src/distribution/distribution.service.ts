@@ -6,9 +6,7 @@ import { HttpService } from '@nestjs/axios'
 
 import { DistributionState } from './interfaces/distribution'
 import { RewardAllocationData } from './dto/reward-allocation-data'
-import {
-  DreDistributionResponse
-} from './interfaces/dre-relay-registry-response'
+import { DreDistributionResponse } from './interfaces/dre-relay-registry-response'
 
 @Injectable()
 export class DistributionService {
@@ -54,8 +52,7 @@ export class DistributionService {
       throw new Error('Missing DRE_HOSTNAME')
     }
 
-    this.distributionDreUri =
-      `${dreHostname}/contract?id=${distributionContractTxId}`
+    this.distributionDreUri = `${dreHostname}/contract?id=${distributionContractTxId}`
 
     this.logger.log(
       `Initialized distribution contract: ${this.distributionDreUri}`
@@ -63,16 +60,16 @@ export class DistributionService {
   }
 
   public async getAllocation(
-    address: string,
+    address: string
   ): Promise<RewardAllocationData | undefined> {
     try {
       await this.refreshDreState()
-      
+
       if (this.dreState) {
-          return {
-              address,
-              amount: this.dreState?.claimable[address] || '0'
-          }
+        return {
+          address,
+          amount: this.dreState?.claimable[address] || '0'
+        }
       } else {
         this.logger.error(
           `Failed to fetch distribution state: DRE state missing`
@@ -101,9 +98,9 @@ export class DistributionService {
             .pipe(
               catchError((error: AxiosError) => {
                 this.logger.error(
-                  `Fetching dre state of distribution from `
-                    + `${this.distributionDreUri} failed with `
-                    + `${error.response?.status}, ${error}`
+                  `Fetching dre state of distribution from ` +
+                    `${this.distributionDreUri} failed with ` +
+                    `${error.response?.status}, ${error}`
                 )
                 throw 'Failed to fetch distribution contract cache from dre'
               })

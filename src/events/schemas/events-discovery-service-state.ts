@@ -7,12 +7,11 @@ export class EventsDiscoveryServiceState {
   isDiscovering: boolean
 
   @Prop({ type: Number, required: false })
-  lastDiscoveredBlock?: number
+  lastSafeCompleteBlock?: number
 }
 
-export type EventsDiscoveryServiceStateDocument = HydratedDocument<
-EventsDiscoveryServiceState
->
+export type EventsDiscoveryServiceStateDocument =
+  HydratedDocument<EventsDiscoveryServiceState>
 
 export const EventsDiscoveryServiceStateSchema = SchemaFactory.createForClass(
   EventsDiscoveryServiceState

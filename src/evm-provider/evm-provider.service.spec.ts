@@ -9,16 +9,15 @@ describe('EvmProviderService', () => {
   let service: EvmProviderService
 
   beforeEach(async () => {
-    module = await Test
-      .createTestingModule({
-        imports: [ ConfigModule.forRoot({ isGlobal: true }) ],
-        providers: [ EvmProviderService ],
-        exports: [ EvmProviderService ]
-      })
+    module = await Test.createTestingModule({
+      imports: [ConfigModule.forRoot({ isGlobal: true })],
+      providers: [EvmProviderService],
+      exports: [EvmProviderService]
+    })
       .setLogger(new Logger())
       .compile()
 
-      service = module.get<EvmProviderService>(EvmProviderService)
+    service = module.get<EvmProviderService>(EvmProviderService)
   })
 
   it('should construct', () => {

@@ -25,9 +25,8 @@ export class RequestingUpdateEvent {
   allocationUpdatedEventTransactionHash?: string
 }
 
-export type RequestingUpdateEventDocument = HydratedDocument<
-  RequestingUpdateEvent
->
+export type RequestingUpdateEventDocument =
+  HydratedDocument<RequestingUpdateEvent>
 
 export const RequestingUpdateEventSchema = SchemaFactory.createForClass(
   RequestingUpdateEvent

@@ -12,7 +12,9 @@ describe('DistributionService', () => {
     module = await Test.createTestingModule({
       imports: [ConfigModule.forRoot(), HttpModule],
       providers: [DistributionService]
-    }).setLogger(new Logger()).compile()
+    })
+      .setLogger(new Logger())
+      .compile()
 
     service = module.get<DistributionService>(DistributionService)
   })

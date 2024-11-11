@@ -19,9 +19,8 @@ export class AllocationUpdatedEvent {
   requestingAddress: string
 }
 
-export type AllocationUpdatedEventDocument = HydratedDocument<
-  AllocationUpdatedEvent
->
+export type AllocationUpdatedEventDocument =
+  HydratedDocument<AllocationUpdatedEvent>
 
 export const AllocationUpdatedEventSchema = SchemaFactory.createForClass(
   AllocationUpdatedEvent

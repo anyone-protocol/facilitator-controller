@@ -13,42 +13,42 @@ export const facilitatorABI = [
     type: 'event'
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "_account",
-        "type": "address"
+        indexed: true,
+        internalType: 'address',
+        name: '_account',
+        type: 'address'
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "_value",
-        "type": "uint256"
+        indexed: false,
+        internalType: 'uint256',
+        name: '_value',
+        type: 'uint256'
       }
     ],
-    "name": "AllocationClaimed",
-    "type": "event"
+    name: 'AllocationClaimed',
+    type: 'event'
   },
   {
-    "anonymous": false,
-    "inputs": [
+    anonymous: false,
+    inputs: [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "_account",
-        "type": "address"
+        indexed: true,
+        internalType: 'address',
+        name: '_account',
+        type: 'address'
       },
       {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "_value",
-        "type": "uint256"
+        indexed: false,
+        internalType: 'uint256',
+        name: '_value',
+        type: 'uint256'
       }
     ],
-    "name": "AllocationUpdated",
-    "type": "event"
+    name: 'AllocationUpdated',
+    type: 'event'
   },
   {
     inputs: [

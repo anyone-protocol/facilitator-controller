@@ -97,13 +97,13 @@ export class EvmProviderService
       `Attempting to start ${socketName} connection [${attempts}/${retries}]`
     )
 
-    return new Promise<void>(resolve => {
+    return new Promise<void>((resolve) => {
       let pingTimeout = null
       let keepAliveInterval = null
       const webSocket = new WebSocket(wssUrl)
 
       provider = new ethers.WebSocketProvider(() => webSocket)
-    
+
       webSocket.on('open', () => {
         keepAliveInterval = setInterval(() => {
           this.logger.debug(
@@ -118,7 +118,7 @@ export class EvmProviderService
 
         resolve()
       })
-    
+
       webSocket.on('close', () => {
         this.logger.error(`The ${socketName} connection was closed`)
         clearInterval(keepAliveInterval)
@@ -131,14 +131,15 @@ export class EvmProviderService
           )
           attempts++
           setTimeout(
-            () => this.startWebSocketConnection(
-              wssUrl,
-              network,
-              socketName,
-              provider,
-              attempts,
-              retries
-            ),
+            () =>
+              this.startWebSocketConnection(
+                wssUrl,
+                network,
+                socketName,
+                provider,
+                attempts,
+                retries
+              ),
             sleepDuration
           )
         } else {
@@ -146,7 +147,7 @@ export class EvmProviderService
           this.swapProviders()
         }
       })
-    
+
       webSocket.on('pong', () => {
         this.logger.debug(`Received pong, ${socketName} connection is alive`)
         clearInterval(pingTimeout)
@@ -166,6 +167,7 @@ export class EvmProviderService
   }
 
   attachWebSocketProvider(provider?: ethers.WebSocketProvider) {
+    /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
     provider = this.currentWebSocketProvider
   }
 }

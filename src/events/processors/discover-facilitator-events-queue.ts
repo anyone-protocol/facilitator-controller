@@ -26,16 +26,14 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
     this.logger.debug(`Dequeueing ${job.name} [${job.id}]`)
 
     switch (job.name) {
-      case DiscoverFacilitatorEventsQueue
-        .JOB_DISCOVER_REQUESTING_UPDATE_EVENTS:
+      case DiscoverFacilitatorEventsQueue.JOB_DISCOVER_REQUESTING_UPDATE_EVENTS:
         try {
-          const lastDiscoveredBlock = await this
-            .eventsDiscoveryService
-            .getLastDiscoveredBlockNumber()
+          const lastSafeCompleteBlock =
+            await this.eventsDiscoveryService.getLastSafeCompleteBlockNumber()
 
-          return await this
-            .eventsDiscoveryService
-            .discoverRequestingUpdateEvents(lastDiscoveredBlock)
+          return await this.eventsDiscoveryService.discoverRequestingUpdateEvents(
+            lastSafeCompleteBlock
+          )
         } catch (error) {
           this.logger.error(
             `Exception during job ${job.name} [${job.id}]`,
@@ -45,16 +43,14 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
 
         return undefined
 
-      case DiscoverFacilitatorEventsQueue
-        .JOB_DISCOVER_ALLOCATION_UPDATED_EVENTS:
+      case DiscoverFacilitatorEventsQueue.JOB_DISCOVER_ALLOCATION_UPDATED_EVENTS:
         try {
-          const lastDiscoveredBlock = await this
-            .eventsDiscoveryService
-            .getLastDiscoveredBlockNumber()
+          const lastSafeCompleteBlock =
+            await this.eventsDiscoveryService.getLastSafeCompleteBlockNumber()
 
-          return await this
-            .eventsDiscoveryService
-            .discoverAllocationUpdatedEvents(lastDiscoveredBlock)
+          return await this.eventsDiscoveryService.discoverAllocationUpdatedEvents(
+            lastSafeCompleteBlock
+          )
         } catch (error) {
           this.logger.error(
             `Exception during job ${job.name} [${job.id}]`,
@@ -64,22 +60,15 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
 
         return undefined
 
-      case DiscoverFacilitatorEventsQueue
-        .JOB_MATCH_DISCOVERED_FACILITATOR_EVENTS:
+      case DiscoverFacilitatorEventsQueue.JOB_MATCH_DISCOVERED_FACILITATOR_EVENTS:
         try {
-          await this
-            .eventsDiscoveryService
-            .matchDiscoveredFacilitatorEvents()
-
-          // NB: Store the last discovered block
-          await this
-            .eventsDiscoveryService
-            .setLastDiscoveredBlockNumber(job.data.currentBlock)
+          await this.eventsDiscoveryService.matchDiscoveredFacilitatorEvents(
+            job.data.currentBlock
+          )
 
           // NB: Re-enqueue this flow
-          await this
-            .eventsDiscoveryService
-            .enqueueDiscoverFacilitatorEventsFlow()
+          await this.eventsDiscoveryService.enqueueDiscoverFacilitatorEventsFlow()
+
           return
         } catch (error) {
           this.logger.error(

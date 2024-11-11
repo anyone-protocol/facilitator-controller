@@ -1,13 +1,17 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
-import { InjectQueue, InjectFlowProducer, QueueEventsHost, QueueEventsListener, OnQueueEvent } from '@nestjs/bullmq'
+import {
+  InjectQueue,
+  InjectFlowProducer,
+  QueueEventsHost,
+  QueueEventsListener,
+  OnQueueEvent
+} from '@nestjs/bullmq'
 import { Queue, FlowProducer, Job } from 'bullmq'
 import { ConfigService } from '@nestjs/config'
 import BigNumber from 'bignumber.js'
 import { ethers, AddressLike, ContractEventPayload } from 'ethers'
 
-import {
-  RecoverUpdateAllocationData
-} from './dto/recover-update-allocation-data'
+import { RecoverUpdateAllocationData } from './dto/recover-update-allocation-data'
 import { RewardAllocationData } from './dto/reward-allocation-data'
 import { ClusterService } from '../cluster/cluster.service'
 import { facilitatorABI } from './abi/facilitator'
@@ -80,8 +84,8 @@ export class EventsService
     }
 
     this.logger.log(
-      `Initializing events service (IS_LIVE: ${this.isLive}, `
-        + `FACILITATOR: ${this.facilitatorAddress})`
+      `Initializing events service (IS_LIVE: ${this.isLive}, ` +
+        `FACILITATOR: ${this.facilitatorAddress})`
     )
   }
 
@@ -106,8 +110,8 @@ export class EventsService
         )
       } else {
         this.logger.warn(
-          'Missing FACILITY_CONTRACT_ADDRESS, '
-            + 'not subscribing to Facilitator EVM events'
+          'Missing FACILITY_CONTRACT_ADDRESS, ' +
+            'not subscribing to Facilitator EVM events'
         )
       }
     } else {
@@ -126,8 +130,8 @@ export class EventsService
       retries: EventsService.maxUpdateAllocationRetries
     }
     this.logger.log(
-      `Attempting to recover updateAllocation job with ${recoverData.retries} `
-        + `retries for ${recoverData.address}`
+      `Attempting to recover updateAllocation job with ${recoverData.retries} ` +
+        `retries for ${recoverData.address}`
     )
     this.facilitatorUpdatesQueue.add(
       'recover-update-allocation',
@@ -142,8 +146,8 @@ export class EventsService
       retries: recoverData.retries - 1
     }
     this.logger.log(
-      `Retry updateAllocation job with ${recoverData.retries} retries for `
-        + `${recoverData.address}`
+      `Retry updateAllocation job with ${recoverData.retries} retries for ` +
+        `${recoverData.address}`
     )
     this.facilitatorUpdatesQueue.add(
       'recover-update-allocation',
@@ -156,8 +160,8 @@ export class EventsService
     recoverData: RecoverUpdateAllocationData
   ) {
     this.logger.error(
-      `Failed recovering the update of allocation for ${recoverData.address} `
-        + `with amount ${recoverData.amount}`
+      `Failed recovering the update of allocation for ${recoverData.address} ` +
+        `with amount ${recoverData.amount}`
     )
   }
 
@@ -202,8 +206,8 @@ export class EventsService
             const isWarning = this.checkForInternalWarnings(updateError.reason)
             if (isWarning) {
               this.logger.error(
-                `UpdateAllocation needs manual intervention: `
-                  + `${updateError.reason}`
+                `UpdateAllocation needs manual intervention: ` +
+                  `${updateError.reason}`
               )
               return false
             }
@@ -280,20 +284,17 @@ export class EventsService
       const transactionHash = (await event.getTransaction()).hash
 
       if (accountString != undefined) {
-        this.logger.log(
-          `Starting rewards update for ${accountString}`
-        )
+        this.logger.log(`Starting rewards update for ${accountString}`)
         await this.enqueueUpdateAllocation(accountString, transactionHash)
       } else {
         this.logger.error(
-          'Trying to request facility update but missing '
-            + 'address in data'
+          'Trying to request facility update but missing ' + 'address in data'
         )
       }
     } else {
       this.logger.debug(
-        'Not the one, skipping starting rewards update... '
-          + 'should be started somewhere else'
+        'Not the one, skipping starting rewards update... ' +
+          'should be started somewhere else'
       )
     }
   }
@@ -310,14 +311,14 @@ export class EventsService
       )
       if (this.facilitatorAddress == undefined) {
         this.logger.error(
-          'Missing FACILITY_CONTRACT_ADDRESS. '
-            + 'Skipping facilitator subscription'
+          'Missing FACILITY_CONTRACT_ADDRESS. ' +
+            'Skipping facilitator subscription'
         )
       } else {
         this.logger.log(
-          `Subscribing to the Facilitator contract `
-            + `${this.facilitatorAddress} with `
-            + `${this.facilitatorOperator.address}...`
+          `Subscribing to the Facilitator contract ` +
+            `${this.facilitatorAddress} with ` +
+            `${this.facilitatorOperator.address}...`
         )
 
         this.facilitatorContract = new ethers.Contract(
@@ -336,5 +337,5 @@ export class EventsService
     }
   }
 
-  private 
+  private
 }

@@ -5,9 +5,7 @@ import { Job } from 'bullmq'
 import { DistributionService } from '../../distribution/distribution.service'
 import { RewardAllocationData } from '../dto/reward-allocation-data'
 import { EventsService } from '../events.service'
-import {
-  RecoverUpdateAllocationData
-} from '../dto/recover-update-allocation-data'
+import { RecoverUpdateAllocationData } from '../dto/recover-update-allocation-data'
 
 @Processor('facilitator-updates-queue')
 export class FacilitatorUpdatesQueue extends WorkerHost {
