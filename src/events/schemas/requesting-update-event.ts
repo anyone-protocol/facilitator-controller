@@ -12,7 +12,7 @@ export class RequestingUpdateEvent {
   @Prop({ type: String, required: true })
   blockHash: string
 
-  @Prop({ type: String, required: true, index: true, unique: true })
+  @Prop({ type: String, required: true })
   transactionHash: string
 
   @Prop({ type: String, required: true })
@@ -31,4 +31,4 @@ export type RequestingUpdateEventDocument = HydratedDocument<
 
 export const RequestingUpdateEventSchema = SchemaFactory.createForClass(
   RequestingUpdateEvent
-)
+).index({ transactionHash: 1, requestingAddress: 1 }, { unique: true })
