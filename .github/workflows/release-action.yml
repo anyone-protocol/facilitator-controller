@@ -51,10 +51,10 @@ jobs:
       - name: Deploy new version
         env:
           NOMAD_CACERT: operations/admin-ui-ca.crt
-          NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN_OPERATOR_CHECKS_DEPLOY }}
+          NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN_FACILITATOR_CONTROLLER_DEPLOY }}
           NOMAD_ADDR: ${{ secrets.NOMAD_ADDR }}
           CONSUL_CACERT: operations/admin-ui-ca.crt
-          CONSUL_HTTP_TOKEN: ${{ secrets.CONSUL_HTTP_TOKEN_OPERATOR_CHECKS_DEPLOY }}
+          CONSUL_HTTP_TOKEN: ${{ secrets.CONSUL_HTTP_TOKEN_FACILITATOR_CONTROLLER_DEPLOY }}
           CONSUL_ADDR: ${{ secrets.CONSUL_ADDR }}
         run: |
           curl -L https://releases.hashicorp.com/levant/0.3.2/levant_0.3.2_linux_amd64.zip -o levant.zip

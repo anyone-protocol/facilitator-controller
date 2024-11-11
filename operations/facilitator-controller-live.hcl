@@ -49,7 +49,7 @@ job "facilitator-controller-live" {
 
       env {
         BUMP="1"
-        IS_LIVE="true"
+        IS_LIVE="false"
         VERSION="[[.commit_sha]]"
         CPU_COUNT="1"
         DO_CLEAN="false"
