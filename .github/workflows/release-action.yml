@@ -1,5 +1,5 @@
 
-name: Build & Publish Facilitator Controller Image
+name: Release New Facilitator Controller Version
 
 on:
   push:
@@ -45,3 +45,21 @@ jobs:
 
           docker tag $IMAGE_NAME $IMAGE_ID:$VERSION
           docker push $IMAGE_ID:$VERSION
+
+      - name: Deploy new version
+        env:
+          NOMAD_CACERT: operations/admin-ui-ca.crt
+          NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN_OPERATOR_CHECKS_DEPLOY }}
+          NOMAD_ADDR: ${{ secrets.NOMAD_ADDR }}
+          CONSUL_CACERT: operations/admin-ui-ca.crt
+          CONSUL_HTTP_TOKEN: ${{ secrets.CONSUL_HTTP_TOKEN_OPERATOR_CHECKS_DEPLOY }}
+          CONSUL_ADDR: ${{ secrets.CONSUL_ADDR }}
+        run: |
+          curl -L https://releases.hashicorp.com/levant/0.3.2/levant_0.3.2_linux_amd64.zip -o levant.zip
+          unzip levant.zip
+          [[ -n $(grep "stage" deploy-vars.json) ]] && ./levant render -var-file="deploy-vars.json" -consul-address=$CONSUL_ADDR -out runtime-job.hcl operations/facilitator-controller-stage.hcl
+          [[ -z $(grep "stage" deploy-vars.json) ]] && ./levant render -var-file="deploy-vars.json" -consul-address=$CONSUL_ADDR -out runtime-job.hcl operations/facilitator-controller-live.hcl
+
+          curl -L https://releases.hashicorp.com/nomad/1.5.6/nomad_1.5.6_linux_amd64.zip -o nomad.zip
+          unzip nomad.zip
+          ./nomad job run runtime-job.hcl

@@ -12,7 +12,7 @@ job "facilitator-controller-stage" {
         to = 3000
         host_network = "wireguard"
       }
-      port "facilitator-controller-redis-port" {
+      port "redis" {
         host_network = "wireguard"
       }
     }
