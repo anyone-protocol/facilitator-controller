@@ -49,7 +49,6 @@ export class EventsService
     private readonly config: ConfigService<{
       FACILITY_CONTRACT_ADDRESS: string
       FACILITY_OPERATOR_KEY: string
-      FACILITY_CONTRACT_DEPLOYED_BLOCK: string
       IS_LIVE: string
       DO_CLEAN: string
     }>,
