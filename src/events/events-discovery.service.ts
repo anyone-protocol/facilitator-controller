@@ -279,19 +279,25 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       }
     }
 
-    const unmatchedRequestingAddresses = uniq(
-      unmatchedEvents.map(ume => ume.requestingAddress)
+    const unmatchedTuples = uniq(
+      unmatchedEvents.map(
+        ({ requestingAddress, transactionHash }) =>
+          ({ requestingAddress, transactionHash })
+      )
     )
-    for (const requestingAddress of unmatchedRequestingAddresses) {
-      await this.eventsService.enqueueUpdateAllocation(requestingAddress)
+    for (const { requestingAddress, transactionHash } of unmatchedTuples) {
+      await this.eventsService.enqueueUpdateAllocation(
+        requestingAddress,
+        transactionHash
+      )
     }
 
     const duplicateAddresses = unmatchedEvents.length
-      - unmatchedRequestingAddresses.length
+      - unmatchedTuples.length
 
     this.logger.log(
       `Matched ${matchedCount} RequestingUpdate to AllocationUpdated events`
-        + ` and enqueued ${unmatchedRequestingAddresses.length}`
+        + ` and enqueued ${unmatchedTuples.length}`
         + ` UpdateAllocation jobs (${duplicateAddresses} duplicate addresses)`
     )
   }

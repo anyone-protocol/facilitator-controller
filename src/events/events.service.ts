@@ -1,9 +1,9 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
-import { InjectQueue, InjectFlowProducer } from '@nestjs/bullmq'
-import { Queue, FlowProducer } from 'bullmq'
+import { InjectQueue, InjectFlowProducer, QueueEventsHost, QueueEventsListener, OnQueueEvent } from '@nestjs/bullmq'
+import { Queue, FlowProducer, Job } from 'bullmq'
 import { ConfigService } from '@nestjs/config'
 import BigNumber from 'bignumber.js'
-import { ethers, AddressLike } from 'ethers'
+import { ethers, AddressLike, ContractEventPayload } from 'ethers'
 
 import {
   RecoverUpdateAllocationData
@@ -14,7 +14,11 @@ import { facilitatorABI } from './abi/facilitator'
 import { EvmProviderService } from '../evm-provider/evm-provider.service'
 
 @Injectable()
-export class EventsService implements OnApplicationBootstrap {
+@QueueEventsListener('facilitator-updates-queue')
+export class EventsService
+  extends QueueEventsHost
+  implements OnApplicationBootstrap
+{
   private readonly logger = new Logger(EventsService.name)
 
   private isLive?: string
@@ -52,6 +56,8 @@ export class EventsService implements OnApplicationBootstrap {
     @InjectFlowProducer('facilitator-updates-flow')
     public facilitatorUpdatesFlow: FlowProducer
   ) {
+    super()
+
     this.isLive = this.config.get<string>('IS_LIVE', { infer: true })
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
 
@@ -107,6 +113,11 @@ export class EventsService implements OnApplicationBootstrap {
     } else {
       this.logger.debug('Not the one, so skipping event subscriptions')
     }
+  }
+
+  @OnQueueEvent('duplicated')
+  onDuplicatedJob(job: Job) {
+    this.logger.warn(`Did not queue duplicate job ${job.name} [${job.id}]`)
   }
 
   public async recoverUpdateAllocation(rewardData: RewardAllocationData) {
@@ -228,23 +239,34 @@ export class EventsService implements OnApplicationBootstrap {
     }
   }
 
-  public async enqueueUpdateAllocation(account: string) {
+  public async enqueueUpdateAllocation(
+    account: string,
+    transactionHash: string
+  ) {
+    // NB: To ensure the queue only contains unique update allocation attempts
+    //     the following jobId format is used:
+    //     [transactionHash]-[requestingAddress]
+    const jobId = `${transactionHash}-${account}`
+
     await this.facilitatorUpdatesFlow.add({
       name: 'update-allocation',
       queueName: 'facilitator-updates-queue',
-      opts: EventsService.jobOpts,
+      opts: { ...EventsService.jobOpts, jobId },
       children: [
         {
           name: 'get-current-rewards',
           queueName: 'facilitator-updates-queue',
-          opts: EventsService.jobOpts,
+          opts: { ...EventsService.jobOpts, jobId },
           data: account
         }
       ]
     })
   }
 
-  private async onRequestingUpdateEvent(account: AddressLike) {
+  private async onRequestingUpdateEvent(
+    account: AddressLike,
+    event: ContractEventPayload
+  ) {
     if (this.cluster.isTheOne()) {
       let accountString: string
       if (account instanceof Promise) {
@@ -255,11 +277,13 @@ export class EventsService implements OnApplicationBootstrap {
         accountString = account
       }
 
+      const transactionHash = (await event.getTransaction()).hash
+
       if (accountString != undefined) {
         this.logger.log(
           `Starting rewards update for ${accountString}`
         )
-        await this.enqueueUpdateAllocation(accountString)
+        await this.enqueueUpdateAllocation(accountString, transactionHash)
       } else {
         this.logger.error(
           'Trying to request facility update but missing '
@@ -311,4 +335,6 @@ export class EventsService implements OnApplicationBootstrap {
       }
     }
   }
+
+  private 
 }
