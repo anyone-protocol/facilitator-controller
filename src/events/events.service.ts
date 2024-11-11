@@ -89,7 +89,9 @@ export class EventsService
   }
 
   async onApplicationBootstrap(): Promise<void> {
-    this.evmProviderService.attachWebSocketProvider(this.provider)
+    this.provider = this.evmProviderService.attachWebSocketProvider(
+      this.provider
+    )
 
     if (this.cluster.isTheOne()) {
       if (this.doClean != 'true') {

@@ -167,7 +167,8 @@ export class EvmProviderService
   }
 
   attachWebSocketProvider(provider?: ethers.WebSocketProvider) {
-    /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
     provider = this.currentWebSocketProvider
+
+    return provider
   }
 }

@@ -97,7 +97,9 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
-    this.evmProviderService.attachWebSocketProvider(this.provider)
+    this.provider = this.evmProviderService.attachWebSocketProvider(
+      this.provider
+    )
 
     if (this.cluster.isTheOne()) {
       this.logger.log('Bootstrapping')
