@@ -56,6 +56,7 @@ job "facilitator-controller-live" {
         REDIS_HOSTNAME="localhost"
         REDIS_PORT="${NOMAD_PORT_redis}"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
+        IS_LOCAL_LEADER="true"
       }
       
       resources {
