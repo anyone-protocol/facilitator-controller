@@ -46,7 +46,7 @@ export class EvmProviderService
         name as keyof typeof DefaultEvmProviderServiceConfig
       )
 
-      if (RequiredConfig[name]) {
+      if (RequiredConfig[name] && !this.config[name]) {
         throw new Error(`${name} is not set!`)
       } else {
         this.logger.warn(`${name} is not set but isn't required`)
