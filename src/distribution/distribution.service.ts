@@ -52,7 +52,7 @@ export class DistributionService {
       throw new Error('Missing DRE_HOSTNAME')
     }
 
-    this.distributionDreUri = `${dreHostname}/contract?id=${distributionContractTxId}`
+    this.distributionDreUri = `${dreHostname}?id=${distributionContractTxId}`
 
     this.logger.log(
       `Initialized distribution contract: ${this.distributionDreUri}`
