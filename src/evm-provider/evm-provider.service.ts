@@ -14,12 +14,6 @@ const DefaultEvmProviderServiceConfig = {
   EVM_SECONDARY_WSS: ''
 }
 
-const RequiredConfig = {
-  EVM_NETWORK: true,
-  EVM_PRIMARY_WSS: true,
-  EVM_SECONDARY_WSS: false
-}
-
 const EXPECTED_PONG_BACK = 15000
 const KEEP_ALIVE_CHECK_INTERVAL = 7500
 const DESTROY_WEBSOCKET_INTERVAL = 5
@@ -41,16 +35,23 @@ export class EvmProviderService
     'primary (infura)'
 
   constructor(config: ConfigService<typeof DefaultEvmProviderServiceConfig>) {
-    for (const name in this.config) {
-      this.config[name] = config.get<string>(
-        name as keyof typeof DefaultEvmProviderServiceConfig
-      )
-
-      if (RequiredConfig[name] && !this.config[name]) {
-        throw new Error(`${name} is not set!`)
-      } else {
-        this.logger.warn(`${name} is not set but isn't required`)
-      }
+    this.config.EVM_NETWORK = config.get<string>('EVM_NETWORK', { infer: true })
+    if (!this.config.EVM_NETWORK) {
+      throw new Error('EVM_NETWORK is not set!')
+    }
+    this.config.EVM_PRIMARY_WSS = config.get<string>(
+      'EVM_PRIMARY_WSS',
+      { infer: true }
+    )
+    if (!this.config.EVM_PRIMARY_WSS) {
+      throw new Error('EVM_PRIMARY_WSS is not set!')
+    }
+    this.config.EVM_SECONDARY_WSS = config.get<string>(
+      'EVM_SECONDARY_WSS',
+      { infer: true }
+    )
+    if (!this.config.EVM_SECONDARY_WSS) {
+      throw new Error('EVM_SECONDARY_WSS is not set!')
     }
   }
 
