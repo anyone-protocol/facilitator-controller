@@ -89,8 +89,11 @@ export class EventsService
   }
 
   async onApplicationBootstrap(): Promise<void> {
-    this.provider = this.evmProviderService.attachWebSocketProvider(
-      this.provider
+    this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
+      async (provider) => {
+        this.provider = provider
+        await this.subscribeToFacilitator()
+      }
     )
 
     if (this.cluster.isTheOne()) {
@@ -121,8 +124,8 @@ export class EventsService
   }
 
   @OnQueueEvent('duplicated')
-  onDuplicatedJob(job: Job) {
-    this.logger.warn(`Did not queue duplicate job ${job.name} [${job.id}]`)
+  onDuplicatedJob({ jobId }: { jobId: string }) {
+    this.logger.warn(`Did not queue duplicate job id [${jobId}]`)
   }
 
   public async recoverUpdateAllocation(rewardData: RewardAllocationData) {
@@ -237,7 +240,7 @@ export class EventsService
       this.logger.warn(
         `NOT LIVE: Not storing updating allocation of ${
           data.address
-        } to ${BigNumber(data.amount).toFixed(0).toString()} relay(s) `
+        } of ${BigNumber(data.amount).toFixed(0).toString()} atomic tokens`
       )
 
       return true
@@ -249,19 +252,25 @@ export class EventsService
     transactionHash: string
   ) {
     // NB: To ensure the queue only contains unique update allocation attempts
-    //     the following jobId format is used:
+    //     the following jobId prefix format is used:
     //     [transactionHash]-[requestingAddress]
-    const jobId = `${transactionHash}-${account}`
+    const prefix = `${transactionHash}-${account}`
 
     await this.facilitatorUpdatesFlow.add({
       name: 'update-allocation',
       queueName: 'facilitator-updates-queue',
-      opts: { ...EventsService.jobOpts, jobId },
+      opts: {
+        ...EventsService.jobOpts,
+        jobId: `${prefix}-update-allocation`
+      },
       children: [
         {
           name: 'get-current-rewards',
           queueName: 'facilitator-updates-queue',
-          opts: { ...EventsService.jobOpts, jobId },
+          opts: {
+            ...EventsService.jobOpts,
+            jobId: `${prefix}-get-current-rewards`
+          },
           data: account
         }
       ]
@@ -321,6 +330,10 @@ export class EventsService
             `${this.facilitatorAddress} with ` +
             `${this.facilitatorOperator.address}...`
         )
+
+        if (this.facilitatorContract) {
+          this.facilitatorContract.off('RequestingUpdate')
+        }
 
         this.facilitatorContract = new ethers.Contract(
           this.facilitatorAddress,

@@ -84,12 +84,6 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       throw new Error('FACILITY_CONTRACT_DEPLOYED_BLOCK is NaN!')
     }
 
-    this.facilitatorContract = new ethers.Contract(
-      this.facilitatorAddress,
-      facilitatorABI,
-      this.provider
-    )
-
     this.logger.log(
       `Initializing events service (IS_LIVE: ${this.isLive}, ` +
         `FACILITATOR: ${this.facilitatorAddress})`
@@ -97,12 +91,23 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
-    this.provider = this.evmProviderService.attachWebSocketProvider(
+    this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
+      (provider) => {
+        this.provider = provider
+        this.facilitatorContract = new ethers.Contract(
+          this.facilitatorAddress,
+          facilitatorABI,
+          this.provider
+        )
+      }
+    )
+    this.facilitatorContract = new ethers.Contract(
+      this.facilitatorAddress,
+      facilitatorABI,
       this.provider
     )
 
     if (this.cluster.isTheOne()) {
-      this.logger.log('Bootstrapping')
       const eventsDiscoveryServiceState =
         await this.eventsDiscoveryServiceStateModel.findOne()
 
@@ -242,6 +247,12 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
 
     const unfulfilledRequestingUpdateEvents =
       await this.requestingUpdateEventModel.find({ fulfilled: false })
+
+    if (unfulfilledRequestingUpdateEvents.length < 1) {
+      this.logger.log(`No unfulfilled RequestingUpdate events to match`)
+
+      return
+    }
 
     this.logger.log(
       `Found ${unfulfilledRequestingUpdateEvents.length}` +
