@@ -13,7 +13,6 @@ import { ethers, AddressLike, ContractEventPayload } from 'ethers'
 
 import { RecoverUpdateAllocationData } from './dto/recover-update-allocation-data'
 import { RewardAllocationData } from './dto/reward-allocation-data'
-import { ClusterService } from '../cluster/cluster.service'
 import { facilitatorABI } from './abi/facilitator'
 import { EvmProviderService } from '../evm-provider/evm-provider.service'
 
@@ -53,7 +52,6 @@ export class EventsService
       DO_CLEAN: string
     }>,
     private readonly evmProviderService: EvmProviderService,
-    private readonly cluster: ClusterService,
     @InjectQueue('facilitator-updates-queue')
     public facilitatorUpdatesQueue: Queue,
     @InjectFlowProducer('facilitator-updates-flow')
@@ -96,30 +94,22 @@ export class EventsService
       }
     )
 
-    if (this.cluster.isTheOne()) {
-      if (this.doClean != 'true') {
-        this.logger.log('Skipped cleaning up old jobs')
-      } else {
-        this.logger.log('Cleaning up old (24hrs+) jobs')
-        await this.facilitatorUpdatesQueue.clean(24 * 60 * 60 * 1000, -1)
-      }
-
-      if (this.isLive != 'true') {
-        await this.facilitatorUpdatesQueue.obliterate({ force: true })
-      }
-
-      if (this.facilitatorAddress != undefined) {
-        this.subscribeToFacilitator().catch((error) =>
-          this.logger.error('Failed subscribing to facilitator events:', error)
-        )
-      } else {
-        this.logger.warn(
-          'Missing FACILITY_CONTRACT_ADDRESS, ' +
-            'not subscribing to Facilitator EVM events'
-        )
-      }
+    if (this.doClean != 'true') {
+      this.logger.log('Skipped cleaning up old jobs')
     } else {
-      this.logger.debug('Not the one, so skipping event subscriptions')
+      this.logger.log('Cleaning up old (24hrs+) jobs')
+      await this.facilitatorUpdatesQueue.clean(24 * 60 * 60 * 1000, -1)
+    }
+
+    if (this.facilitatorAddress != undefined) {
+      this.subscribeToFacilitator().catch((error) =>
+        this.logger.error('Failed subscribing to facilitator events:', error)
+      )
+    } else {
+      this.logger.warn(
+        'Missing FACILITY_CONTRACT_ADDRESS, ' +
+          'not subscribing to Facilitator EVM events'
+      )
     }
   }
 
@@ -274,28 +264,21 @@ export class EventsService
   }
 
   private async onRequestingUpdateEvent(account: AddressLike) {
-    if (this.cluster.isTheOne()) {
-      let accountString: string
-      if (account instanceof Promise) {
-        accountString = await account
-      } else if (ethers.isAddressable(account)) {
-        accountString = await account.getAddress()
-      } else {
-        accountString = account
-      }
-
-      if (accountString != undefined) {
-        this.logger.log(`Queueing rewards update for ${accountString}`)
-        await this.enqueueUpdateAllocation(accountString)
-      } else {
-        this.logger.error(
-          'Trying to request facility update but missing ' + 'address in data'
-        )
-      }
+    let accountString: string
+    if (account instanceof Promise) {
+      accountString = await account
+    } else if (ethers.isAddressable(account)) {
+      accountString = await account.getAddress()
     } else {
-      this.logger.debug(
-        'Not the one, skipping starting rewards update... ' +
-          'should be started somewhere else'
+      accountString = account
+    }
+
+    if (accountString != undefined) {
+      this.logger.log(`Queueing rewards update for ${accountString}`)
+      await this.enqueueUpdateAllocation(accountString)
+    } else {
+      this.logger.error(
+        'Trying to request facility update but missing ' + 'address in data'
       )
     }
   }

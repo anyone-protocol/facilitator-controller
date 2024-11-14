@@ -4,7 +4,6 @@ import { MongooseModule } from '@nestjs/mongoose'
 
 import { EventsService } from './events.service'
 import { FacilitatorUpdatesQueue } from './processors/facilitator-updates-queue'
-import { ClusterModule } from '../cluster/cluster.module'
 import { DistributionModule } from '../distribution/distribution.module'
 import {
   RequestingUpdateEvent,
@@ -25,7 +24,6 @@ import { EvmProviderModule } from '../evm-provider/evm-provider.module'
 @Module({
   imports: [
     EvmProviderModule,
-    ClusterModule,
     DistributionModule,
     BullModule.registerQueue({
       name: 'facilitator-updates-queue',

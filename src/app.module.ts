@@ -5,7 +5,6 @@ import { MongooseModule } from '@nestjs/mongoose'
 
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
-import { ClusterModule } from './cluster/cluster.module'
 import { EventsModule } from './events/events.module'
 import { DistributionModule } from './distribution/distribution.module'
 import { EvmProviderModule } from './evm-provider/evm-provider.module'
@@ -34,7 +33,6 @@ import { EvmProviderModule } from './evm-provider/evm-provider.module'
       })
     }),
     EvmProviderModule,
-    ClusterModule,
     DistributionModule,
     EventsModule
   ],

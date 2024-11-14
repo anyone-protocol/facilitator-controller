@@ -11,7 +11,6 @@ import { FACILITATOR_EVENTS, facilitatorABI } from './abi/facilitator'
 import { RequestingUpdateEvent } from './schemas/requesting-update-event'
 import { AllocationUpdatedEvent } from './schemas/allocation-updated-event'
 import { EventsService } from './events.service'
-import { ClusterService } from '../cluster/cluster.service'
 import { DiscoverFacilitatorEventsQueue } from './processors/discover-facilitator-events-queue'
 import { EventsDiscoveryServiceState } from './schemas/events-discovery-service-state'
 import { EvmProviderService } from '../evm-provider/evm-provider.service'
@@ -50,7 +49,6 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       DO_CLEAN: string
     }>,
     private readonly evmProviderService: EvmProviderService,
-    private readonly cluster: ClusterService,
     private readonly eventsService: EventsService,
     @InjectQueue('discover-facilitator-events-queue')
     public discoverFacilitatorEventsQueue: Queue,
@@ -107,40 +105,29 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       this.provider
     )
 
-    if (this.cluster.isTheOne()) {
-      const eventsDiscoveryServiceState =
-        await this.eventsDiscoveryServiceStateModel.findOne()
+    const eventsDiscoveryServiceState =
+      await this.eventsDiscoveryServiceStateModel.findOne()
 
-      if (eventsDiscoveryServiceState) {
-        this.state = eventsDiscoveryServiceState.toObject()
-      } else {
-        await this.eventsDiscoveryServiceStateModel.create(this.state)
-      }
-
-      if (this.doClean != 'true') {
-        this.logger.log('Skipped cleaning up old jobs')
-      } else {
-        this.logger.log('Cleaning up old (24hrs+) jobs')
-        await this.discoverFacilitatorEventsQueue.clean(24 * 60 * 60 * 1000, -1)
-      }
-
-      if (this.isLive != 'true') {
-        this.logger.debug('Cleaning up queues for dev...')
-        await this.discoverFacilitatorEventsQueue.obliterate({ force: true })
-        await this.enqueueDiscoverFacilitatorEventsFlow(0)
-        this.logger.log('Queued immediate discovery of facilitator events')
-      } else {
-        if (this.state.isDiscovering) {
-          this.logger.log(
-            'Discovering facilitator events should already be queued'
-          )
-        } else {
-          await this.enqueueDiscoverFacilitatorEventsFlow(0)
-          this.logger.log('Queued immediate discovery of facilitator events')
-        }
-      }
+    if (eventsDiscoveryServiceState) {
+      this.state = eventsDiscoveryServiceState.toObject()
     } else {
-      this.logger.debug('Not the one, so skipping event subscriptions')
+      await this.eventsDiscoveryServiceStateModel.create(this.state)
+    }
+
+    if (this.doClean != 'true') {
+      this.logger.log('Skipped cleaning up old jobs')
+    } else {
+      this.logger.log('Cleaning up old (24hrs+) jobs')
+      await this.discoverFacilitatorEventsQueue.clean(24 * 60 * 60 * 1000, -1)
+    }
+
+    if (this.state.isDiscovering) {
+      this.logger.log(
+        'Discovering facilitator events should already be queued'
+      )
+    } else {
+      await this.enqueueDiscoverFacilitatorEventsFlow(0)
+      this.logger.log('Queued immediate discovery of facilitator events')
     }
   }
 
