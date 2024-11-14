@@ -50,6 +50,10 @@ job "facilitator-controller-stage" {
         {{- range service "validator-stage-mongo" }}
           MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-stage"
         {{- end }}
+        {{- range nomadService "facilitator-controller-stage-redis" }}
+          REDIS_HOSTNAME="{{ .Address }}"
+          REDIS_PORT="{{ .Port }}"
+        {{- end }}
         EOH
         destination = "secrets/file.env"
         env         = true
@@ -61,8 +65,8 @@ job "facilitator-controller-stage" {
         VERSION="[[.commit_sha]]"
         CPU_COUNT="1"
         DO_CLEAN="false"
-        REDIS_HOSTNAME="localhost"
-        REDIS_PORT="${NOMAD_PORT_redis}"
+        # REDIS_HOSTNAME="localhost"
+        # REDIS_PORT="${NOMAD_PORT_redis}"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         IS_LOCAL_LEADER="true"
       }
@@ -97,10 +101,6 @@ job "facilitator-controller-stage" {
 
     network {
       mode = "bridge"
-      port "facilitator-controller-port" {
-        to = 3000
-        host_network = "wireguard"
-      }
       port "redis" {
         host_network = "wireguard"
       }

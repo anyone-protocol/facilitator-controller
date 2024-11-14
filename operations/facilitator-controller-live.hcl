@@ -90,6 +90,21 @@ job "facilitator-controller-live" {
         }
       }
     }
+  }
+
+  group "facilitator-controller-live-redis-group" {
+    count = 1
+
+    network {
+      mode = "bridge"
+      port "facilitator-controller-port" {
+        to = 3000
+        host_network = "wireguard"
+      }
+      port "redis" {
+        host_network = "wireguard"
+      }
+    }
 
     task "facilitator-controller-live-redis" {
       driver = "docker"
