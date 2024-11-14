@@ -50,6 +50,10 @@ job "facilitator-controller-live" {
         {{- range service "validator-live-mongo" }}
           MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-live"
         {{- end }}
+        {{- range service "facilitator-controller-live-redis" }}
+          REDIS_HOSTNAME="{{ .Address }}"
+          REDIS_PORT="{{ .Port }}"
+        {{- end }}
         EOH
         destination = "secrets/file.env"
         env         = true
@@ -61,8 +65,6 @@ job "facilitator-controller-live" {
         VERSION="[[.commit_sha]]"
         CPU_COUNT="1"
         DO_CLEAN="false"
-        REDIS_HOSTNAME="localhost"
-        REDIS_PORT="${NOMAD_PORT_redis}"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
         IS_LOCAL_LEADER="true"
       }
@@ -97,10 +99,6 @@ job "facilitator-controller-live" {
 
     network {
       mode = "bridge"
-      port "facilitator-controller-port" {
-        to = 3000
-        host_network = "wireguard"
-      }
       port "redis" {
         host_network = "wireguard"
       }
