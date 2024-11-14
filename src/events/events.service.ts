@@ -247,14 +247,10 @@ export class EventsService
     }
   }
 
-  public async enqueueUpdateAllocation(
-    account: string,
-    transactionHash: string
-  ) {
+  public async enqueueUpdateAllocation(account: string) {
     // NB: To ensure the queue only contains unique update allocation attempts
-    //     the following jobId prefix format is used:
-    //     [transactionHash]-[requestingAddress]
-    const prefix = `${transactionHash}-${account}`
+    //     the jobId is prefixed with the requesting address
+    const prefix = `${account}`
 
     await this.facilitatorUpdatesFlow.add({
       name: 'update-allocation',
@@ -277,10 +273,7 @@ export class EventsService
     })
   }
 
-  private async onRequestingUpdateEvent(
-    account: AddressLike,
-    event: ContractEventPayload
-  ) {
+  private async onRequestingUpdateEvent(account: AddressLike) {
     if (this.cluster.isTheOne()) {
       let accountString: string
       if (account instanceof Promise) {
@@ -291,11 +284,9 @@ export class EventsService
         accountString = account
       }
 
-      const transactionHash = (await event.getTransaction()).hash
-
       if (accountString != undefined) {
-        this.logger.log(`Starting rewards update for ${accountString}`)
-        await this.enqueueUpdateAllocation(accountString, transactionHash)
+        this.logger.log(`Queueing rewards update for ${accountString}`)
+        await this.enqueueUpdateAllocation(accountString)
       } else {
         this.logger.error(
           'Trying to request facility update but missing ' + 'address in data'

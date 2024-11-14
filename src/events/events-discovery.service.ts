@@ -164,8 +164,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         ` since block ${fromBlock.toString()}`
     )
 
-    let knownEvents = 0,
-      newEvents = 0
+    let knownEvents = 0, newEvents = 0
     for (const evt of events) {
       const knownEvent = await this.requestingUpdateEventModel.findOne({
         eventName: FACILITATOR_EVENTS.RequestingUpdate,
@@ -173,13 +172,20 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       })
 
       if (!knownEvent) {
-        await this.requestingUpdateEventModel.create({
-          blockNumber: evt.blockNumber,
-          blockHash: evt.blockHash,
-          transactionHash: evt.transactionHash,
-          requestingAddress: evt.args[0]
-        })
-        newEvents++
+        try {
+          await this.requestingUpdateEventModel.create({
+            blockNumber: evt.blockNumber,
+            blockHash: evt.blockHash,
+            transactionHash: evt.transactionHash,
+            requestingAddress: evt.args[0]
+          })
+          newEvents++
+        } catch (err) {
+          this.logger.warn(
+            `RequestingUpdateEvent creation race condition gracefully avoided`
+          )
+          knownEvents++
+        }
       } else {
         knownEvents++
       }
@@ -213,8 +219,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         ` since block ${fromBlock.toString()}`
     )
 
-    let knownEvents = 0,
-      newEvents = 0
+    let knownEvents = 0, newEvents = 0
     for (const evt of events) {
       const knownEvent = await this.allocationUpdatedEventModel.findOne({
         eventName: FACILITATOR_EVENTS.AllocationUpdated,
@@ -222,13 +227,20 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       })
 
       if (!knownEvent) {
-        await this.allocationUpdatedEventModel.create({
-          blockNumber: evt.blockNumber,
-          blockHash: evt.blockHash,
-          transactionHash: evt.transactionHash,
-          requestingAddress: evt.args[0]
-        })
-        newEvents++
+        try {
+          await this.allocationUpdatedEventModel.create({
+            blockNumber: evt.blockNumber,
+            blockHash: evt.blockHash,
+            transactionHash: evt.transactionHash,
+            requestingAddress: evt.args[0]
+          })
+          newEvents++
+        } catch (err) {
+          this.logger.warn(
+            `AllocationUpdatedEvent creation race condition gracefully avoided`
+          )
+          knownEvents++
+        }
       } else {
         knownEvents++
       }
@@ -294,10 +306,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     )
 
     for (const { requestingAddress, transactionHash } of unmatchedToQueue) {
-      await this.eventsService.enqueueUpdateAllocation(
-        requestingAddress,
-        transactionHash
-      )
+      await this.eventsService.enqueueUpdateAllocation(requestingAddress)
     }
 
     const duplicateAddresses = unmatchedEvents.length - unmatchedToQueue.length
