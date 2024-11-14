@@ -50,7 +50,7 @@ job "facilitator-controller-stage" {
         {{- range service "validator-stage-mongo" }}
           MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-stage"
         {{- end }}
-        {{- range nomadService "facilitator-controller-stage-redis" }}
+        {{- range service "facilitator-controller-stage-redis" }}
           REDIS_HOSTNAME="{{ .Address }}"
           REDIS_PORT="{{ .Port }}"
         {{- end }}
