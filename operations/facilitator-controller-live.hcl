@@ -11,6 +11,7 @@ job "facilitator-controller-live" {
       max_parallel = 1
       canary       = 1
       auto_revert  = true
+      auto_promote = true
     }
 
     network {
