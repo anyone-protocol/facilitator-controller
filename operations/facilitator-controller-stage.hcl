@@ -28,7 +28,7 @@ job "facilitator-controller-stage" {
     task "facilitator-controller-stage-service" {
       driver = "docker"
       config {
-        image = "ghcr.io/anyone-protocol/facilitator-controller:[[.deploy]]"
+        image = "ghcr.io/anyone-protocol/facilitator-controller:[[.commit_sha]]"
         force_pull = true
       }
 
