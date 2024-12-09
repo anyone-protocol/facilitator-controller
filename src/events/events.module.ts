@@ -4,7 +4,6 @@ import { MongooseModule } from '@nestjs/mongoose'
 
 import { EventsService } from './events.service'
 import { FacilitatorUpdatesQueue } from './processors/facilitator-updates-queue'
-import { DistributionModule } from '../distribution/distribution.module'
 import {
   RequestingUpdateEvent,
   RequestingUpdateEventSchema
@@ -20,11 +19,12 @@ import {
   EventsDiscoveryServiceStateSchema
 } from './schemas/events-discovery-service-state'
 import { EvmProviderModule } from '../evm-provider/evm-provider.module'
+import { RelayRewardsModule } from '../relay-rewards/relay-rewards.module'
 
 @Module({
   imports: [
     EvmProviderModule,
-    DistributionModule,
+    RelayRewardsModule,
     BullModule.registerQueue({
       name: 'facilitator-updates-queue',
       streams: { events: { maxLen: 2000 } }

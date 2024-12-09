@@ -38,11 +38,10 @@ job "facilitator-controller-live" {
 
       template {
         data = <<EOH
-        DISTRIBUTION_CONTRACT_TXID="[[ consulKey "smart-contracts/live/distribution-address" ]]"
+        RELAY_REWARDS_PROCESS_ID="[[ consulKey "smart-contracts/live/relay-rewards-address" ]]"
         FACILITY_CONTRACT_ADDRESS="[[ consulKey "facilitator/sepolia/live/address" ]]"
         {{with secret "kv/valid-ator/live"}}
           FACILITY_OPERATOR_KEY="{{.Data.data.FACILITY_OPERATOR_KEY}}"
-          DRE_HOSTNAME="{{.Data.data.DRE_HOSTNAME}}"
           EVM_NETWORK="{{.Data.data.INFURA_NETWORK}}"
           EVM_PRIMARY_WSS="{{.Data.data.INFURA_WS_URL}}"
           EVM_SECONDARY_WSS="{{.Data.data.ALCHEMY_WS_URL}}"

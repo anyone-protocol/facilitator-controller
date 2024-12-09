@@ -6,8 +6,8 @@ import { MongooseModule } from '@nestjs/mongoose'
 import { AppController } from './app.controller'
 import { AppService } from './app.service'
 import { EventsModule } from './events/events.module'
-import { DistributionModule } from './distribution/distribution.module'
 import { EvmProviderModule } from './evm-provider/evm-provider.module'
+import { RelayRewardsModule } from './relay-rewards/relay-rewards.module'
 
 @Module({
   imports: [
@@ -33,7 +33,7 @@ import { EvmProviderModule } from './evm-provider/evm-provider.module'
       })
     }),
     EvmProviderModule,
-    DistributionModule,
+    RelayRewardsModule,
     EventsModule
   ],
   controllers: [AppController],

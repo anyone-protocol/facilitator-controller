@@ -9,7 +9,7 @@ import {
 import { Queue, FlowProducer, Job } from 'bullmq'
 import { ConfigService } from '@nestjs/config'
 import BigNumber from 'bignumber.js'
-import { ethers, AddressLike, ContractEventPayload } from 'ethers'
+import { ethers, AddressLike } from 'ethers'
 
 import { RecoverUpdateAllocationData } from './dto/recover-update-allocation-data'
 import { RewardAllocationData } from './dto/reward-allocation-data'

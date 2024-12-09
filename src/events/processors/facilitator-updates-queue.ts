@@ -2,10 +2,10 @@ import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq'
 import { Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
 
-import { DistributionService } from '../../distribution/distribution.service'
 import { RewardAllocationData } from '../dto/reward-allocation-data'
 import { EventsService } from '../events.service'
 import { RecoverUpdateAllocationData } from '../dto/recover-update-allocation-data'
+import { RelayRewardsService } from '../../relay-rewards/relay-rewards.service'
 
 @Processor('facilitator-updates-queue')
 export class FacilitatorUpdatesQueue extends WorkerHost {
@@ -17,8 +17,8 @@ export class FacilitatorUpdatesQueue extends WorkerHost {
     'recover-update-allocation'
 
   constructor(
-    private readonly distribution: DistributionService,
-    private readonly events: EventsService
+    private readonly events: EventsService,
+    private readonly relayRewards: RelayRewardsService
   ) {
     super()
   }
@@ -36,7 +36,8 @@ export class FacilitatorUpdatesQueue extends WorkerHost {
             this.logger.log(
               `Fetching current rewards from distribution for ${address}`
             )
-            return await this.distribution.getAllocation(address)
+
+            return await this.relayRewards.getAllocation(address)
           } else {
             this.logger.error('Missing address in job data')
             return undefined
