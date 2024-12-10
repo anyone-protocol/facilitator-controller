@@ -37,7 +37,10 @@ export class RelayRewardsService {
   ): Promise<{ address: string, amount: string }> {
     const { result } = await sendAosDryRun({
       processId: this.relayRewardsProcessId,
-      tags: [{ name: 'Action', value: 'View-State' }]
+      tags: [
+        { name: 'Action', value: 'Get-Rewards' },
+        { name: 'Address', value: address }
+      ]
     })
 
     return { address, amount: result.Messages[0].Data }
