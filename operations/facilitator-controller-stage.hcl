@@ -59,7 +59,7 @@ job "facilitator-controller-stage" {
       }
 
       env {
-        BUMP="ACL"
+        BUMP="redeploy-rewards-3"
         IS_LIVE="false"
         VERSION="[[.commit_sha]]"
         CPU_COUNT="1"
