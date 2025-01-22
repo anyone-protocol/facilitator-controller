@@ -34,6 +34,7 @@
     "@permaweb/aoconnect": "^0.0.59",
     "arweave": "^1.15.5",
     "base64url": "^3.0.1",
+    "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "consul": "^2.0.1",
     "ethers": "^6.13.4",

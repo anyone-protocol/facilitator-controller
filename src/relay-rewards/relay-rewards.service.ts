@@ -1,10 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { Wallet } from 'ethers'
+import BigNumber from 'bignumber.js'
 import _ from 'lodash'
 
 import { sendAosDryRun } from '../util/send-aos-message'
-import { EthereumSigner } from '../util/arbundles-lite'
 
 @Injectable()
 export class RelayRewardsService {
@@ -43,6 +42,8 @@ export class RelayRewardsService {
       ]
     })
 
-    return { address, amount: result.Messages[0].Data }
+    const amount = BigNumber(result.Messages[0].Data).times('10e17').toString()
+
+    return { address, amount }
   }
 }
