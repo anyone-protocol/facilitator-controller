@@ -60,7 +60,7 @@ job "facilitator-controller-stage" {
 
       env {
         BUMP="redeploy-rewards-3"
-        IS_LIVE="false"
+        IS_LIVE="true"
         VERSION="[[.commit_sha]]"
         CPU_COUNT="1"
         DO_CLEAN="false"
