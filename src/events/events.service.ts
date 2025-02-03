@@ -189,11 +189,17 @@ export class EventsService
         )
       } else {
         try {
-          await this.facilitySignerContract.updateAllocation(
+          const receipt = await this.facilitySignerContract.updateAllocation(
             data.address,
             BigNumber(data.amount).toFixed(0),
             true
           )
+
+          const tx = await receipt.wait()
+          this.logger.log(
+            `UpdateAllocation for [${data.address}] tx: [${tx.hash}]`
+          )
+
           return true
         } catch (updateError) {
           if (updateError.reason) {
