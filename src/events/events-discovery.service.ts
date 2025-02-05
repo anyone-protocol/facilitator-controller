@@ -297,7 +297,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     )
 
     for (const { requestingAddress, transactionHash } of unmatchedToQueue) {
-      await this.eventsService.enqueueUpdateAllocation(requestingAddress)
+      await this.eventsService.enqueueUpdateAllocation(requestingAddress, transactionHash)
     }
 
     const duplicateAddresses = unmatchedEvents.length - unmatchedToQueue.length

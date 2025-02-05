@@ -249,7 +249,8 @@ export class EventsService
   ) {
     // NB: To ensure the queue only contains unique update allocation attempts
     //     the jobId is prefixed with the requesting address
-    const prefix = `${account}-${transactionHash}`
+    const now = Date.now().toString()
+    const prefix = `${account}-${transactionHash || now}`
 
     await this.facilitatorUpdatesFlow.add({
       name: 'update-allocation',
