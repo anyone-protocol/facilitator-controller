@@ -76,7 +76,7 @@ job "facilitator-controller-stage" {
       service {
         name = "facilitator-controller-stage"
         port = "facilitator-controller-port"
-        tags = []
+        tags = ["logging"]
         
         check {
           name     = "Stage facilitator-controller health check"
@@ -121,7 +121,7 @@ job "facilitator-controller-stage" {
       service {
         name = "facilitator-controller-stage-redis"
         port = "redis"
-        
+        tags = ["logging"]
         check {
           name     = "facilitator controller stage redis health check"
           type     = "tcp"
