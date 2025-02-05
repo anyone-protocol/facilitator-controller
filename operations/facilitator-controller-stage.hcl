@@ -4,7 +4,7 @@ job "facilitator-controller-stage" {
 
   group "facilitator-controller-stage-group" {
     
-    count = 1
+    count = 3
 
     update {
       stagger      = "30s"
