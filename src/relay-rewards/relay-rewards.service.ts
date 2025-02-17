@@ -42,7 +42,7 @@ export class RelayRewardsService {
       ]
     })
 
-    const amount = BigNumber(result.Messages[0].Data).times('10e17').toString()
+    const amount = BigNumber(result.Messages[0].Data).toString()
 
     return { address, amount }
   }
