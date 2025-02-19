@@ -189,12 +189,15 @@ export class EventsService
         )
       } else {
         try {
+          const amount = BigNumber(data.amount).toFixed(0)
+          this.logger.log(
+            `Updating allocation for [${data.address}] for amount [${amount}]`
+          )
           const receipt = await this.facilitySignerContract.updateAllocation(
             data.address,
-            BigNumber(data.amount).toFixed(0),
+            amount,
             true
           )
-
           const tx = await receipt.wait()
           this.logger.log(
             `UpdateAllocation for [${data.address}] tx: [${tx.hash}]`
