@@ -42,7 +42,11 @@ export class RelayRewardsService {
       ]
     })
 
+    this.logger.log(`Get-Rewards response from AO for ${address}: ${result.Messages[0].Data}`)
+
     const amount = BigNumber(result.Messages[0].Data).toString()
+
+    this.logger.log(`Got allocation for ${address}: ${amount}`)
 
     return { address, amount }
   }
