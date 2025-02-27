@@ -345,6 +345,10 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         }
       ]
     })
+
+    this.logger.log(
+      '[alarm=enqueued-discover-facilitator-events] Enqueued discover facilitator events flow'
+    )
   }
 
   private async updateServiceState() {

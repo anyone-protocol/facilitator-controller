@@ -233,6 +233,11 @@ export class EventsService
           }
         }
       }
+
+      this.logger.warn(
+        `[alarm=update-allocation-failed] UpdateAllocation failed for: [${JSON.stringify(data)}]`
+      )
+
       return false
     } else {
       this.logger.warn(
