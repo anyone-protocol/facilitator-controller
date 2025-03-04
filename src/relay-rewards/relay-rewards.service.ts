@@ -46,6 +46,14 @@ export class RelayRewardsService {
 
     const amount = BigNumber(result.Messages[0].Data).toString()
 
+    if (amount === 'NaN') {
+      this.logger.warn(
+        `Undefined amount for ${address}: ${result.Messages[0].Data}`
+      )
+
+      return undefined
+    }
+
     this.logger.log(`Got allocation for ${address}: ${amount}`)
 
     return { address, amount }
