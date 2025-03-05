@@ -40,11 +40,11 @@ export class FacilitatorUpdatesQueue extends WorkerHost {
             return await this.relayRewards.getAllocation(address)
           } else {
             this.logger.error('Missing address in job data')
-            return undefined
+            return false
           }
         } catch (error) {
           this.logger.error('Exception while getting current rewards:', error)
-          return undefined
+          return false
         }
 
       case FacilitatorUpdatesQueue.JOB_UPDATE_ALLOCATION:
@@ -53,7 +53,7 @@ export class FacilitatorUpdatesQueue extends WorkerHost {
         ).reduce((prev, curr) => (prev as []).concat(curr as []), [])
 
         try {
-          if (rewardData.length > 0 && rewardData[0]) {
+          if (rewardData && rewardData.length > 0 && rewardData[0]) {
             this.logger.log(`Updating rewards for ${rewardData[0].address}`)
             const hasPassedUpdate = await this.events.updateAllocation(
               rewardData[0]
@@ -64,7 +64,6 @@ export class FacilitatorUpdatesQueue extends WorkerHost {
 
             return hasPassedUpdate
           } else {
-            this.logger.error(`Missing address in job data: [${rewardData}]`)
             return false
           }
         } catch (e) {
