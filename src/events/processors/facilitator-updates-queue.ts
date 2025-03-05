@@ -68,7 +68,11 @@ export class FacilitatorUpdatesQueue extends WorkerHost {
             return false
           }
         } catch (e) {
-          this.logger.error('Exception when updating allocation:', e.stack)
+          this.logger.error(
+            `Exception when updating allocation. rewardData: [${rewardData}]`,
+            e.stack
+          )
+
           return false
         }
 
