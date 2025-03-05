@@ -81,7 +81,7 @@ export class FacilitatorUpdatesQueue extends WorkerHost {
           const recoverData: RecoverUpdateAllocationData =
             job.data as RecoverUpdateAllocationData
           this.logger.log(
-            `Running recovery of updateAllocation with ${recoverData.retries} retries`
+            `Running recovery of updateAllocation with ${recoverData.retries} retries: [${JSON.stringify(recoverData)}]`
           )
           if (recoverData.retries > 0) {
             const hasPassedRecovery = await this.events.updateAllocation({
@@ -98,12 +98,12 @@ export class FacilitatorUpdatesQueue extends WorkerHost {
             return hasPassedRecovery
           } else {
             this.logger.warn(
-              'No more retries to try while recovering allocation'
+              `No more retries to try while recovering allocation: [${JSON.stringify(recoverData)}]`
             )
           }
           return true
         } catch (e) {
-          this.logger.error('Exception while recovering allocation:', e)
+          this.logger.error(`Exception during recovering allocation job: [${JSON.stringify(job.data)}]`, e)
           return false
         }
 
