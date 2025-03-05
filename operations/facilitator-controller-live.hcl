@@ -3,7 +3,6 @@ job "facilitator-controller-live" {
   type = "service"
 
   group "facilitator-controller-live-group" {
-    
     count = 3
 
     update {
