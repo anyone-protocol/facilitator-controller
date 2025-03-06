@@ -29,6 +29,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
 
   private isLive?: string
   private doClean?: string
+  private doDbNuke?: string
   private facilitatorAddress?: string
 
   private provider: ethers.WebSocketProvider
@@ -47,6 +48,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       FACILITY_CONTRACT_DEPLOYED_BLOCK: string
       IS_LIVE: string
       DO_CLEAN: string
+      DO_DB_NUKE: string
     }>,
     private readonly evmProviderService: EvmProviderService,
     private readonly eventsService: EventsService,
@@ -63,6 +65,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   ) {
     this.isLive = this.config.get<string>('IS_LIVE', { infer: true })
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
+    this.doDbNuke = this.config.get<string>('DO_DB_NUKE', { infer: true })
 
     this.facilitatorAddress = this.config.get<string>(
       'FACILITY_CONTRACT_ADDRESS',
@@ -123,6 +126,12 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         this.state.isDiscovering = false
         await this.updateServiceState()
       }
+    }
+
+    if (this.doDbNuke === 'true') {
+      this.logger.log('Nuking DB')
+      await this.requestingUpdateEventModel.deleteMany({})
+      this.logger.log('Nuked RequestingUpdateEvent collection')
     }
 
     if (this.state.isDiscovering) {
