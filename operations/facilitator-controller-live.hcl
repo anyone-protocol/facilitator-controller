@@ -65,6 +65,7 @@ job "facilitator-controller-live" {
         DO_CLEAN="false"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
         IS_LOCAL_LEADER="true"
+        CU_URL="https://cu.ardrive.io"
       }
       
       resources {
