@@ -39,7 +39,7 @@ job "facilitator-controller-live" {
       }
 
       template {
-        data = <<EOH
+        data = <<-EOH
         RELAY_REWARDS_PROCESS_ID="[[ consulKey "smart-contracts/live/relay-rewards-address" ]]"
         FACILITY_CONTRACT_ADDRESS="[[ consulKey "facilitator/sepolia/live/address" ]]"
 
