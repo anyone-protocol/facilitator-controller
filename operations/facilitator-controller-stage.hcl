@@ -80,6 +80,7 @@ job "facilitator-controller-stage" {
         DO_CLEAN="false"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         IS_LOCAL_LEADER="true"
+        CU_URL="https://cu.anyone.permaweb.services"
       }
       
       resources {
