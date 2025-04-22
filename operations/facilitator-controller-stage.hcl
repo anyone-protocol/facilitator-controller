@@ -56,11 +56,13 @@ job "facilitator-controller-stage" {
           REDIS_PORT="{{ .Port }}"
         {{- end }}
 
+        {{ $apiKeyPrefix := "api_key_" }}
+        {{ $allocIndex := env "NOMAD_ALLOC_INDEX" }}
+
         {{ with secret "kv/valid-ator/stage" }}
           FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY }}"
           EVM_NETWORK="{{ .Data.data.INFURA_NETWORK }}"
         {{ end }}
-
         {{ with secret "kv/jsonrpc/stage/facilitator-controller/infura/eth" }}
           EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print $apiKeyPrefix $allocIndex) }}"
         {{ end }}
