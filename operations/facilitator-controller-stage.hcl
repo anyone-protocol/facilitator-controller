@@ -37,19 +37,17 @@ job "facilitator-controller-stage" {
       }
 
       vault {
-        policies = ["valid-ator-stage"]
+        policies = [
+          "valid-ator-stage",
+          "jsonrpc-stage-facilitator-controller-eth"
+        ]
       }
 
       template {
-        data = <<EOH
+        data = <<-EOH
         RELAY_REWARDS_PROCESS_ID="[[ consulKey "smart-contracts/stage/relay-rewards-address" ]]"
         FACILITY_CONTRACT_ADDRESS="[[ consulKey "facilitator/sepolia/stage/address" ]]"
-        {{with secret "kv/valid-ator/stage"}}
-          FACILITY_OPERATOR_KEY="{{.Data.data.FACILITY_OPERATOR_KEY}}"
-          EVM_NETWORK="{{.Data.data.INFURA_NETWORK}}"
-          EVM_PRIMARY_WSS="{{.Data.data.INFURA_WS_URL}}"
-          EVM_SECONDARY_WSS="{{.Data.data.ALCHEMY_WS_URL}}"
-        {{end}}
+
         {{- range service "validator-stage-mongo" }}
           MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-stage"
         {{- end }}
@@ -57,6 +55,18 @@ job "facilitator-controller-stage" {
           REDIS_HOSTNAME="{{ .Address }}"
           REDIS_PORT="{{ .Port }}"
         {{- end }}
+
+        {{ with secret "kv/valid-ator/stage" }}
+          FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY }}"
+          EVM_NETWORK="{{ .Data.data.INFURA_NETWORK }}"
+        {{ end }}
+
+        {{ with secret "kv/jsonrpc/stage/facilitator-controller/infura/eth" }}
+          EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print $apiKeyPrefix $allocIndex) }}"
+        {{ end }}
+        {{ with secret "kv/jsonrpc/stage/facilitator-controller/alchemy/eth" }}
+          EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print $apiKeyPrefix $allocIndex) }}"
+        {{ end }}
         EOH
         destination = "secrets/file.env"
         env         = true
