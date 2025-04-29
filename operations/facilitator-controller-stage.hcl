@@ -39,7 +39,8 @@ job "facilitator-controller-stage" {
       vault {
         policies = [
           "valid-ator-stage",
-          "jsonrpc-stage-facilitator-controller-eth"
+          "jsonrpc-stage-facilitator-controller-eth",
+          "hodler-sepolia-stage", "relay-rewards-stage", "staking-rewards-stage"
         ]
       }
 
@@ -69,6 +70,22 @@ job "facilitator-controller-stage" {
         {{ with secret "kv/jsonrpc/stage/facilitator-controller/alchemy/eth" }}
           EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print $apiKeyPrefix $allocIndex) }}"
         {{ end }}
+        
+        TOKEN_CONTRACT_ADDRESS="[[ consulKey "ator-token/sepolia/stage/token" ]]"
+        HODLER_CONTRACT_ADDRESS="[[ consulKey "hodler/sepolia/stage/address" ]]"
+        {{with secret "kv/hodler/sepolia/stage"}}
+            HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
+            REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"    
+        {{end}}
+        {{with secret "kv/staking-rewards/stage"}}
+          STAKING_REWARDS_CONTROLLER_KEY="{{.Data.data.STAKING_REWARDS_CONTROLLER_KEY}}"
+          BUNDLER_NETWORK="{{.Data.data.BUNDLER_NETWORK}}"
+          BUNDLER_CONTROLLER_KEY="{{.Data.data.STAKING_REWARDS_CONTROLLER_KEY}}"
+        {{end}}
+        
+        {{with secret "kv/relay-rewards/stage"}}
+          RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.RELAY_REWARDS_CONTROLLER_KEY}}"
+        {{end}}
         EOH
         destination = "secrets/file.env"
         env         = true
@@ -83,6 +100,9 @@ job "facilitator-controller-stage" {
         FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         IS_LOCAL_LEADER="true"
         CU_URL="https://cu.anyone.permaweb.services"
+        USE_HODLER="true"
+        USE_FACILITY="true"
+        HODLER_CONTRACT_DEPLOYED_BLOCK="8190110"
       }
       
       resources {

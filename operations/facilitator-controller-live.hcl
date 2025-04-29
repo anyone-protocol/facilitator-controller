@@ -78,6 +78,8 @@ job "facilitator-controller-live" {
         FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
         IS_LOCAL_LEADER="true"
         CU_URL="https://cu.anyone.permaweb.services"
+        USE_HODLER="false"
+        USE_FACILITY="true"
       }
       
       resources {

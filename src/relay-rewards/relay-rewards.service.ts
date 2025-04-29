@@ -3,7 +3,16 @@ import { ConfigService } from '@nestjs/config'
 import BigNumber from 'bignumber.js'
 import _ from 'lodash'
 
-import { sendAosDryRun } from '../util/send-aos-message'
+import {
+  AosSigningFunction,
+  sendAosDryRun,
+  sendAosMessage
+} from '../util/send-aos-message'
+import { createEthereumDataItemSigner } from '../util/create-ethereum-data-item-signer'
+import { EthereumSigner } from '../util/arbundles-lite'
+import { Wallet } from 'ethers'
+import { ClaimedRewardsData } from 'src/events/dto/claimed-rewards-data'
+
 
 @Injectable()
 export class RelayRewardsService {
@@ -12,11 +21,16 @@ export class RelayRewardsService {
   private isLive?: string
 
   private readonly relayRewardsProcessId: string
+  private readonly relayRewardsControllerKey: string
+
+  private signer!: AosSigningFunction
+
 
   constructor(
     private readonly config: ConfigService<{
       IS_LIVE: string
       RELAY_REWARDS_PROCESS_ID: string
+      RELAY_REWARDS_CONTROLLER_KEY: string
     }>
   ) {
     this.isLive = config.get<string>('IS_LIVE', { infer: true })
@@ -29,7 +43,25 @@ export class RelayRewardsService {
     if (relayRewardsPid != undefined) {
       this.relayRewardsProcessId = relayRewardsPid
     } else this.logger.error('Missing relay rewards process id')
+
+    this.relayRewardsControllerKey = this.config.get<string>(
+      'RELAY_REWARDS_CONTROLLER_KEY',
+      { infer: true }
+    )
+    if (this.relayRewardsControllerKey == undefined) {
+      this.logger.error('Missing RELAY_REWARDS_CONTROLLER_KEY')
+    }
   }
+
+  async onApplicationBootstrap() {
+    this.signer = await createEthereumDataItemSigner(
+      new EthereumSigner(this.relayRewardsControllerKey)
+    )
+    const wallet = new Wallet(this.relayRewardsControllerKey)
+    const address = await wallet.getAddress()
+    this.logger.log(`Bootstrapped with signer address ${address}`)
+  }
+
 
   public async getAllocation(
     address: string
@@ -57,5 +89,35 @@ export class RelayRewardsService {
     this.logger.log(`Got allocation for ${address}: ${amount}`)
 
     return { address, amount }
+  }
+  
+  public async claimRewards(
+    address: string
+  ): Promise<ClaimedRewardsData | false> {
+    const { result } = await sendAosMessage({
+      processId: this.relayRewardsProcessId,
+      signer: this.signer as any,
+      tags: [
+        { name: 'Action', value: 'Claim-Rewards' },
+        { name: 'Address', value: address },
+        { name: 'Timestamp', value: new Date().toISOString() }
+      ]
+    })
+
+    this.logger.log(`Get-Rewards response from AO for ${address}: ${result.Messages[0].Data}`)
+
+    const amount = BigNumber(result.Messages[0].Data).toString()
+
+    if (amount === 'NaN') {
+      this.logger.warn(
+        `Undefined amount for ${address}: ${result.Messages[0].Data}`
+      )
+
+      return false
+    }
+
+    this.logger.log(`Got allocation for ${address}: ${amount}`)
+
+    return { address, amount, kind: 'relay' }
   }
 }
