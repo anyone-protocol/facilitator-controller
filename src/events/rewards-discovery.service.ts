@@ -155,8 +155,14 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
         'Discovering hodler events should already be queued'
       )
     } else {
-      await this.enqueueDiscoverHodlerEventsFlow(0)
-      this.logger.log('Queued immediate discovery of hodler events')
+      if (this.useHodler == 'true') {
+        await this.enqueueDiscoverHodlerEventsFlow(0)
+        this.logger.log('Queued immediate discovery of hodler events')
+      } else {
+        this.logger.log(
+          'Skipping immediate discovery of hodler events (USE_HODLER: false)'
+        )
+      }
     }
   }
 

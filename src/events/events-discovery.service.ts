@@ -153,8 +153,14 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         'Discovering facilitator events should already be queued'
       )
     } else {
-      await this.enqueueDiscoverFacilitatorEventsFlow(0)
-      this.logger.log('Queued immediate discovery of facilitator events')
+      if (this.useFacility == 'true') {
+        await this.enqueueDiscoverFacilitatorEventsFlow(0)
+        this.logger.log('Queued immediate discovery of facilitator events')
+      } else {
+        this.logger.log(
+          'Skipped queuing immediate discovery of facilitator events [USE_FACILITY=false]'
+        )
+      }
     }
   }
 
