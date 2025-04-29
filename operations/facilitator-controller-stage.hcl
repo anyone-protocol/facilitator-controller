@@ -40,7 +40,7 @@ job "facilitator-controller-stage" {
         policies = [
           "valid-ator-stage",
           "jsonrpc-stage-facilitator-controller-eth",
-          "hodler-sepolia-stage", "relay-rewards-stage", "staking-rewards-stage"
+          "hodler-sepolia-stage", "distribution-stage", "staking-rewards-stage"
         ]
       }
 
@@ -83,8 +83,8 @@ job "facilitator-controller-stage" {
           BUNDLER_CONTROLLER_KEY="{{.Data.data.STAKING_REWARDS_CONTROLLER_KEY}}"
         {{end}}
         
-        {{with secret "kv/relay-rewards/stage"}}
-          RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.RELAY_REWARDS_CONTROLLER_KEY}}"
+        {{with secret "kv/distribution/stage"}}
+          RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.DISTRIBUTION_OWNER_KEY}}"
         {{end}}
         EOH
         destination = "secrets/file.env"
