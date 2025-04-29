@@ -71,7 +71,7 @@ job "facilitator-controller-stage" {
           EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print $apiKeyPrefix $allocIndex) }}"
         {{ end }}
         
-        TOKEN_CONTRACT_ADDRESS="[[ consulKey "ator-token/sepolia/stage/token" ]]"
+        TOKEN_CONTRACT_ADDRESS="[[ consulKey "ator-token/sepolia/stage/address" ]]"
         HODLER_CONTRACT_ADDRESS="[[ consulKey "hodler/sepolia/stage/address" ]]"
         {{with secret "kv/hodler/sepolia/stage"}}
             HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
