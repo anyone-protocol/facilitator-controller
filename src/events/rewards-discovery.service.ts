@@ -31,6 +31,8 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   private isLive?: string
   private doClean?: string
   private doDbNuke?: string
+  private useHodler?: string
+
   private hodlerAddress?: string
 
   private provider: ethers.WebSocketProvider
@@ -50,6 +52,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
       IS_LIVE: string
       DO_CLEAN: string
       DO_DB_NUKE: string
+      USE_HODLER: string
     }>,
     private readonly evmProviderService: EvmProviderService,
     private readonly eventsService: EventsService,
@@ -67,55 +70,67 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     this.isLive = this.config.get<string>('IS_LIVE', { infer: true })
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
     this.doDbNuke = this.config.get<string>('DO_DB_NUKE', { infer: true })
+    this.useHodler = this.config.get<string>('USE_HODLER', { infer: true })
+    if (this.useHodler == 'true') {
+      this.hodlerAddress = this.config.get<string>(
+        'HODLER_CONTRACT_ADDRESS',
+        { infer: true }
+      )
+      if (!this.hodlerAddress) {
+        throw new Error('HODLER_CONTRACT_ADDRESS is not set!')
+      }
 
-    this.hodlerAddress = this.config.get<string>(
-      'HODLER_CONTRACT_ADDRESS',
-      { infer: true }
-    )
-    if (!this.hodlerAddress) {
-      throw new Error('HODLER_CONTRACT_ADDRESS is not set!')
+      const hodlerContractDeployedBlock = Number.parseInt(
+        this.config.get<string>('HODLER_CONTRACT_DEPLOYED_BLOCK', {
+          infer: true
+        })
+      )
+      this.hodlerContractDeployedBlock = hodlerContractDeployedBlock
+      if (Number.isNaN(hodlerContractDeployedBlock)) {
+        throw new Error('HODLER_CONTRACT_DEPLOYED_BLOCK is NaN!')
+      }
+
+      this.logger.log(
+        `Initializing events service (IS_LIVE: ${this.isLive}, ` +
+          `HODLER: ${this.hodlerAddress})`
+      )
+    } else {
+      this.logger.log(
+        'Skipping initialization of rewards discovery service (USE_HODLER: false)'
+      )
     }
-
-    const hodlerContractDeployedBlock = Number.parseInt(
-      this.config.get<string>('HODLER_CONTRACT_DEPLOYED_BLOCK', {
-        infer: true
-      })
-    )
-    this.hodlerContractDeployedBlock = hodlerContractDeployedBlock
-    if (Number.isNaN(hodlerContractDeployedBlock)) {
-      throw new Error('HODLER_CONTRACT_DEPLOYED_BLOCK is NaN!')
-    }
-
-    this.logger.log(
-      `Initializing events service (IS_LIVE: ${this.isLive}, ` +
-        `HODLER: ${this.hodlerAddress})`
-    )
   }
 
   async onApplicationBootstrap() {
-    this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
-      (provider) => {
-        this.provider = provider
-        this.hodlerContract = new ethers.Contract(
-          this.hodlerAddress,
-          hodlerABI,
-          this.provider
-        )
+    if (this.useHodler == 'true') {
+      this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
+        (provider) => {
+          this.provider = provider
+          this.hodlerContract = new ethers.Contract(
+            this.hodlerAddress,
+            hodlerABI,
+            this.provider
+          )
+        }
+      )
+      this.hodlerContract = new ethers.Contract(
+        this.hodlerAddress,
+        hodlerABI,
+        this.provider
+      )
+
+      const rewardsDiscoveryServiceState =
+        await this.rewardsDiscoveryServiceStateModel.findOne()
+
+      if (rewardsDiscoveryServiceState) {
+        this.state = rewardsDiscoveryServiceState.toObject()
+      } else {
+        await this.rewardsDiscoveryServiceStateModel.create(this.state)
       }
-    )
-    this.hodlerContract = new ethers.Contract(
-      this.hodlerAddress,
-      hodlerABI,
-      this.provider
-    )
-
-    const rewardsDiscoveryServiceState =
-      await this.rewardsDiscoveryServiceStateModel.findOne()
-
-    if (rewardsDiscoveryServiceState) {
-      this.state = rewardsDiscoveryServiceState.toObject()
     } else {
-      await this.rewardsDiscoveryServiceStateModel.create(this.state)
+      this.logger.log(
+        'Skipping bootstrap of rewards discovery service (USE_HODLER: false)'
+      )
     }
 
     if (this.doClean != 'true') {
@@ -204,6 +219,12 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   }
 
   public async discoverRewardedEvents(from?: ethers.BlockTag) {
+    if (this.useHodler != 'true') {
+      this.logger.log(
+        'Skipping discovery of Rewarded events (USE_HODLER: false)'
+      )
+      return
+    }
     const fromBlock = from || this.hodlerContractDeployedBlock
 
     this.logger.log(
@@ -259,6 +280,12 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   }
 
   public async matchDiscoveredHodlerEvents(currentBlock: number) {
+    if (this.useHodler != 'true') {
+      this.logger.log(
+        'Matching UpdateRewards to Rewarded events (USE_HODLER: false)'
+      )
+      return
+    }
     this.logger.log('Matching UpdateRewards to Rewarded events')
 
     const unfulfilledUpdateRewardsEvents =

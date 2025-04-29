@@ -30,6 +30,8 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   private isLive?: string
   private doClean?: string
   private doDbNuke?: string
+  private useFacility?: string
+
   private facilitatorAddress?: string
 
   private provider: ethers.WebSocketProvider
@@ -49,6 +51,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       IS_LIVE: string
       DO_CLEAN: string
       DO_DB_NUKE: string
+      USE_FACILITY: string
     }>,
     private readonly evmProviderService: EvmProviderService,
     private readonly eventsService: EventsService,
@@ -66,55 +69,66 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     this.isLive = this.config.get<string>('IS_LIVE', { infer: true })
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
     this.doDbNuke = this.config.get<string>('DO_DB_NUKE', { infer: true })
+    this.useFacility = this.config.get<string>('USE_FACILITY', { infer: true })
 
-    this.facilitatorAddress = this.config.get<string>(
-      'FACILITY_CONTRACT_ADDRESS',
-      { infer: true }
-    )
-    if (!this.facilitatorAddress) {
-      throw new Error('FACILITY_CONTRACT_ADDRESS is not set!')
+    if (this.useFacility == 'true') {
+      this.facilitatorAddress = this.config.get<string>(
+        'FACILITY_CONTRACT_ADDRESS',
+        { infer: true }
+      )
+      if (!this.facilitatorAddress) {
+        throw new Error('FACILITY_CONTRACT_ADDRESS is not set!')
+      }
+
+      const facilitatorContractDeployedBlock = Number.parseInt(
+        this.config.get<string>('FACILITY_CONTRACT_DEPLOYED_BLOCK', {
+          infer: true
+        })
+      )
+      this.facilitatorContractDeployedBlock = facilitatorContractDeployedBlock
+      if (Number.isNaN(facilitatorContractDeployedBlock)) {
+        throw new Error('FACILITY_CONTRACT_DEPLOYED_BLOCK is NaN!')
+      }
+
+      this.logger.log(
+        `Initializing events service (IS_LIVE: ${this.isLive}, ` +
+          `FACILITATOR: ${this.facilitatorAddress})`
+      )
+    } else {
+      this.logger.log(`Skipped initialization of events service [USE_FACILITY=false]`)
     }
-
-    const facilitatorContractDeployedBlock = Number.parseInt(
-      this.config.get<string>('FACILITY_CONTRACT_DEPLOYED_BLOCK', {
-        infer: true
-      })
-    )
-    this.facilitatorContractDeployedBlock = facilitatorContractDeployedBlock
-    if (Number.isNaN(facilitatorContractDeployedBlock)) {
-      throw new Error('FACILITY_CONTRACT_DEPLOYED_BLOCK is NaN!')
-    }
-
-    this.logger.log(
-      `Initializing events service (IS_LIVE: ${this.isLive}, ` +
-        `FACILITATOR: ${this.facilitatorAddress})`
-    )
   }
 
   async onApplicationBootstrap() {
-    this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
-      (provider) => {
-        this.provider = provider
-        this.facilitatorContract = new ethers.Contract(
-          this.facilitatorAddress,
-          facilitatorABI,
-          this.provider
-        )
+    if (this.useFacility == 'true') {
+      this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
+        (provider) => {
+          this.provider = provider
+          this.facilitatorContract = new ethers.Contract(
+            this.facilitatorAddress,
+            facilitatorABI,
+            this.provider
+          )
+        }
+      )
+      this.facilitatorContract = new ethers.Contract(
+        this.facilitatorAddress,
+        facilitatorABI,
+        this.provider
+      )
+
+      const eventsDiscoveryServiceState =
+        await this.eventsDiscoveryServiceStateModel.findOne()
+
+      if (eventsDiscoveryServiceState) {
+        this.state = eventsDiscoveryServiceState.toObject()
+      } else {
+        await this.eventsDiscoveryServiceStateModel.create(this.state)
       }
-    )
-    this.facilitatorContract = new ethers.Contract(
-      this.facilitatorAddress,
-      facilitatorABI,
-      this.provider
-    )
-
-    const eventsDiscoveryServiceState =
-      await this.eventsDiscoveryServiceStateModel.findOne()
-
-    if (eventsDiscoveryServiceState) {
-      this.state = eventsDiscoveryServiceState.toObject()
     } else {
-      await this.eventsDiscoveryServiceStateModel.create(this.state)
+      this.logger.log(
+        `Skipped bootstrap of events service [USE_FACILITY=false]`
+      )
     }
 
     if (this.doClean != 'true') {
