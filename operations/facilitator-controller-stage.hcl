@@ -101,7 +101,7 @@ job "facilitator-controller-stage" {
         IS_LOCAL_LEADER="true"
         CU_URL="https://cu.anyone.permaweb.services"
         USE_HODLER="true"
-        USE_FACILITY="true"
+        USE_FACILITY="false"
         HODLER_CONTRACT_DEPLOYED_BLOCK="8190110"
       }
       
