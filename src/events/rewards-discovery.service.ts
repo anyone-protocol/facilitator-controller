@@ -104,14 +104,14 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     if (this.useHodler == 'true') {
       this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
-        (provider) => {
+        (provider => {
           this.provider = provider
           this.hodlerContract = new ethers.Contract(
             this.hodlerAddress,
             hodlerABI,
             this.provider
           )
-        }
+        }).bind(this)
       )
       this.hodlerContract = new ethers.Contract(
         this.hodlerAddress,

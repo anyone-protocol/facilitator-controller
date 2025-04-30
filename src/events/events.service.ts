@@ -159,7 +159,7 @@ export class EventsService
 
   async onApplicationBootstrap(): Promise<void> {
     this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
-      async (provider) => {
+      (async (provider) => {
         this.provider = provider
         if (this.useHodler == 'true') {
           this.tokenContract = new ethers.Contract(
@@ -175,7 +175,7 @@ export class EventsService
           await this.subscribeToFacilitator()
         }
         
-      }
+      }).bind(this)
     )
 
     if (this.doClean != 'true') {

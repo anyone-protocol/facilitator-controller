@@ -102,14 +102,14 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   async onApplicationBootstrap() {
     if (this.useFacility == 'true') {
       this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
-        (provider) => {
+        (provider => {
           this.provider = provider
           this.facilitatorContract = new ethers.Contract(
             this.facilitatorAddress,
             facilitatorABI,
             this.provider
           )
-        }
+        }).bind(this)
       )
       this.facilitatorContract = new ethers.Contract(
         this.facilitatorAddress,
