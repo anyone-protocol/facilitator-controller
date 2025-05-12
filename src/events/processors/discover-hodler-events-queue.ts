@@ -64,19 +64,17 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
           await this.rewardsDiscoveryService.matchDiscoveredHodlerEvents(
             job.data.currentBlock
           )
-
-          // NB: Re-enqueue this flow
-          await this.rewardsDiscoveryService.enqueueDiscoverHodlerEventsFlow()
-
-          return
         } catch (error) {
           this.logger.error(
             `Exception during job ${job.name} [${job.id}]`,
             error.stack
           )
+        } finally {
+          // NB: Re-enqueue this flow
+          await this.rewardsDiscoveryService.enqueueDiscoverHodlerEventsFlow()
         }
 
-        return undefined
+        return
 
       default:
         this.logger.warn(`Found unknown job ${job.name} [${job.id}]`)
