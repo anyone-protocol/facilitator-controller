@@ -64,7 +64,7 @@ job "facilitator-controller-stage" {
           BUNDLER_NETWORK="{{.Data.data.BUNDLER_NETWORK}}"
           BUNDLER_CONTROLLER_KEY="{{.Data.data.BUNDLER_CONTROLLER_KEY}}"
 
-          RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.DISTRIBUTION_OWNER_KEY}}"
+          RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.RELAY_REWARDS_CONTROLLER_KEY}}"
         {{ end }}
         EOH
         destination = "secrets/keys.env"
