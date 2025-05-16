@@ -395,7 +395,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     })
 
     this.logger.log(
-      '[alarm=enqueued-discover-hodler-events] Enqueued discover facilitator events flow'
+      '[alarm=enqueued-discover-hodler-events] Enqueued discover hodler events flow'
     )
   }
 

@@ -1,6 +1,7 @@
 job "facilitator-controller-live" {
   datacenters = ["ator-fin"]
   type = "service"
+  namespace = "live-protocol"
 
   group "facilitator-controller-live-group" {
     count = 2
@@ -32,10 +33,29 @@ job "facilitator-controller-live" {
       }
 
       vault {
-        policies = [
-          "valid-ator-live",
-          "jsonrpc-live-facilitator-controller-eth"
-        ]
+        role = "any1-nomad-workloads-controller"
+      }
+
+      identity {
+        name = "vault_default"
+        aud  = ["any1-infra"]
+        ttl  = "1h"
+      }
+
+      template {
+        data = <<-EOH
+        {{ $allocIndex := env "NOMAD_ALLOC_INDEX" }}
+        
+        {{ with secret "kv/live-protocol/facilitator-controller-live"}}
+          FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY_DEPRECATED }}"
+          EVM_NETWORK="{{ .Data.data.EVM_NETWORK }}"
+
+          EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print `INFURA_SEPOLIA_API_KEY_` $allocIndex) }}"
+          EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_SEPOLIA_API_KEY_` $allocIndex) }}"
+        {{ end }}
+        EOH
+        destination = "secrets/file.env"
+        env         = true
       }
 
       template {
@@ -46,26 +66,12 @@ job "facilitator-controller-live" {
         {{- range service "validator-live-mongo" }}
           MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-live"
         {{- end }}
-        {{- range service "facilitator-controller-live-redis" }}
+        {{- range service "facilitator-controller-redis-live" }}
           REDIS_HOSTNAME="{{ .Address }}"
           REDIS_PORT="{{ .Port }}"
         {{- end }}
-
-        {{ $apiKeyPrefix := "api_key_" }}
-        {{ $allocIndex := env "NOMAD_ALLOC_INDEX" }}
-
-        {{ with secret "kv/valid-ator/live" }}
-          FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY }}"
-          EVM_NETWORK="{{ .Data.data.INFURA_NETWORK }}"
-        {{ end }}
-        {{ with secret "kv/jsonrpc/live/facilitator-controller/infura/eth" }}
-          EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print $apiKeyPrefix $allocIndex) }}"
-        {{ end }}
-        {{ with secret "kv/jsonrpc/live/facilitator-controller/alchemy/eth" }}
-          EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print $apiKeyPrefix $allocIndex) }}"
-        {{ end }}
         EOH
-        destination = "secrets/file.env"
+        destination = "local/config.env"
         env         = true
       }
 

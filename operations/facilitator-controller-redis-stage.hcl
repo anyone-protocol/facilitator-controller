@@ -1,6 +1,7 @@
 job "facilitator-controller-redis-stage" {
   datacenters = ["ator-fin"]
   type = "service"
+  namespace = "stage-protocol"
 
   group "facilitator-controller-redis-stage-group" {
     count = 1
@@ -28,7 +29,7 @@ job "facilitator-controller-redis-stage" {
       }
 
       service {
-        name = "facilitator-controller-stage-redis"
+        name = "facilitator-controller-redis-stage"
         port = "redis"
         tags = ["logging"]
         check {

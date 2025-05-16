@@ -1,6 +1,7 @@
 job "facilitator-controller-stage" {
   datacenters = ["ator-fin"]
   type = "service"
+  namespace = "stage-protocol"
 
   constraint {
     attribute = "${node.unique.id}"
@@ -37,11 +38,37 @@ job "facilitator-controller-stage" {
       }
 
       vault {
-        policies = [
-          "valid-ator-stage",
-          "jsonrpc-stage-facilitator-controller-eth",
-          "hodler-sepolia-stage", "distribution-stage", "staking-rewards-stage"
-        ]
+        role = "any1-nomad-workloads-controller"
+      }
+
+      identity {
+        name = "vault_default"
+        aud  = ["any1-infra"]
+        ttl  = "1h"
+      }
+
+      template {
+        data = <<-EOH
+        {{ $allocIndex := env "NOMAD_ALLOC_INDEX" }}
+        {{ with secret "kv/stage-protocol/facilitator-controller-stage"}}
+          FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY_DEPRECATED }}"
+          EVM_NETWORK="{{ .Data.data.EVM_NETWORK }}"
+
+          EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print `INFURA_SEPOLIA_API_KEY_` $allocIndex) }}"
+          EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_SEPOLIA_API_KEY_` $allocIndex) }}"
+
+          HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
+          REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"
+
+          STAKING_REWARDS_CONTROLLER_KEY="{{.Data.data.STAKING_REWARDS_CONTROLLER_KEY}}"
+          BUNDLER_NETWORK="{{.Data.data.BUNDLER_NETWORK}}"
+          BUNDLER_CONTROLLER_KEY="{{.Data.data.BUNDLER_CONTROLLER_KEY}}"
+
+          RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.DISTRIBUTION_OWNER_KEY}}"
+        {{ end }}
+        EOH
+        destination = "secrets/keys.env"
+        env         = true
       }
 
       template {
@@ -52,42 +79,15 @@ job "facilitator-controller-stage" {
         {{- range service "validator-stage-mongo" }}
           MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-stage"
         {{- end }}
-        {{- range service "facilitator-controller-stage-redis" }}
+        {{- range service "facilitator-controller-redis-stage" }}
           REDIS_HOSTNAME="{{ .Address }}"
           REDIS_PORT="{{ .Port }}"
         {{- end }}
-
-        {{ $apiKeyPrefix := "api_key_" }}
-        {{ $allocIndex := env "NOMAD_ALLOC_INDEX" }}
-
-        {{ with secret "kv/valid-ator/stage" }}
-          FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY }}"
-          EVM_NETWORK="{{ .Data.data.INFURA_NETWORK }}"
-        {{ end }}
-        {{ with secret "kv/jsonrpc/stage/facilitator-controller/infura/eth" }}
-          EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print $apiKeyPrefix $allocIndex) }}"
-        {{ end }}
-        {{ with secret "kv/jsonrpc/stage/facilitator-controller/alchemy/eth" }}
-          EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print $apiKeyPrefix $allocIndex) }}"
-        {{ end }}
         
         TOKEN_CONTRACT_ADDRESS="[[ consulKey "ator-token/sepolia/stage/address" ]]"
         HODLER_CONTRACT_ADDRESS="[[ consulKey "hodler/sepolia/stage/address" ]]"
-        {{with secret "kv/hodler/sepolia/stage"}}
-            HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
-            REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"    
-        {{end}}
-        {{with secret "kv/staking-rewards/stage"}}
-          STAKING_REWARDS_CONTROLLER_KEY="{{.Data.data.STAKING_REWARDS_CONTROLLER_KEY}}"
-          BUNDLER_NETWORK="{{.Data.data.BUNDLER_NETWORK}}"
-          BUNDLER_CONTROLLER_KEY="{{.Data.data.STAKING_REWARDS_CONTROLLER_KEY}}"
-        {{end}}
-        
-        {{with secret "kv/distribution/stage"}}
-          RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.DISTRIBUTION_OWNER_KEY}}"
-        {{end}}
         EOH
-        destination = "secrets/file.env"
+        destination = "local/config.env"
         env         = true
       }
 
