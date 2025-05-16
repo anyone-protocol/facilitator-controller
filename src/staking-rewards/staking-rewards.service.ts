@@ -48,17 +48,19 @@ export class StakingRewardsService implements OnApplicationBootstrap {
       { infer: true }
     )
     if (this.stakingRewardsControllerKey == undefined) {
-      this.logger.error('Missing STAKING_REWARDS_CONTROLLER_KEY')
+      this.logger.warn('Missing STAKING_REWARDS_CONTROLLER_KEY. This is ok only if this is non-hodler deploy')
     }
   }
 
   async onApplicationBootstrap() {
-    this.signer = await createEthereumDataItemSigner(
-      new EthereumSigner(this.stakingRewardsControllerKey)
-    )
-    const wallet = new Wallet(this.stakingRewardsControllerKey)
-    const address = await wallet.getAddress()
-    this.logger.log(`Bootstrapped with signer address ${address}`)
+    if (this.stakingRewardsControllerKey) {
+      this.signer = await createEthereumDataItemSigner(
+        new EthereumSigner(this.stakingRewardsControllerKey)
+      )
+      const wallet = new Wallet(this.stakingRewardsControllerKey)
+      const address = await wallet.getAddress()
+      this.logger.log(`Bootstrapped with signer address ${address}`)
+    }
   }
 
   public async claimRewards(

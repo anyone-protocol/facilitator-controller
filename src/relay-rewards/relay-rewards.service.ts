@@ -49,17 +49,19 @@ export class RelayRewardsService {
       { infer: true }
     )
     if (this.relayRewardsControllerKey == undefined) {
-      this.logger.error('Missing RELAY_REWARDS_CONTROLLER_KEY')
+      this.logger.warn('Missing RELAY_REWARDS_CONTROLLER_KEY. This is ok only if this is non-hodler deploy')
     }
   }
 
   async onApplicationBootstrap() {
-    this.signer = await createEthereumDataItemSigner(
-      new EthereumSigner(this.relayRewardsControllerKey)
-    )
-    const wallet = new Wallet(this.relayRewardsControllerKey)
-    const address = await wallet.getAddress()
-    this.logger.log(`Bootstrapped with signer address ${address}`)
+    if (this.relayRewardsControllerKey) {
+      this.signer = await createEthereumDataItemSigner(
+        new EthereumSigner(this.relayRewardsControllerKey)
+      )
+      const wallet = new Wallet(this.relayRewardsControllerKey)
+      const address = await wallet.getAddress()
+      this.logger.log(`Bootstrapped with signer address ${address}`)
+    }
   }
 
 
