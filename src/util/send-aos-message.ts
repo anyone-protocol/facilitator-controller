@@ -1,10 +1,14 @@
 import { Logger } from '@nestjs/common'
 import {
-  message as aoMessage,
-  result as aoResult,
-  dryrun as aoDryRun,
+  connect as aoConnect,
   createDataItemSigner
 } from '@permaweb/aoconnect'
+
+export const {
+  message: aoMessage,
+  result: aoResult,
+  dryrun: aoDryRun,
+} = aoConnect({ CU_URL: process.env.CU_URL })
 
 export type SendAosBaseOptions = {
   processId: string
