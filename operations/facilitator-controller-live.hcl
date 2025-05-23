@@ -2,6 +2,11 @@ job "facilitator-controller-live" {
   datacenters = ["ator-fin"]
   type = "service"
   namespace = "live-protocol"
+  
+  constraint {
+    attribute = "${meta.pool}"
+    value = "live-protocol"
+  }
 
   group "facilitator-controller-live-group" {
     count = 2
