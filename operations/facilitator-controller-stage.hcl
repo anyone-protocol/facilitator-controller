@@ -91,7 +91,7 @@ job "facilitator-controller-stage" {
         IS_LIVE="true"
         VERSION="[[.commit_sha]]"
         CPU_COUNT="1"
-        DO_CLEAN="false"
+        DO_CLEAN="true"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         IS_LOCAL_LEADER="true"
         CU_URL="https://cu.anyone.permaweb.services"

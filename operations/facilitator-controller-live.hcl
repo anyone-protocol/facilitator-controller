@@ -2,7 +2,7 @@ job "facilitator-controller-live" {
   datacenters = ["ator-fin"]
   type = "service"
   namespace = "live-protocol"
-  
+
   constraint {
     attribute = "${meta.pool}"
     value = "live-protocol"
@@ -85,7 +85,7 @@ job "facilitator-controller-live" {
         IS_LIVE="true"
         VERSION="[[.commit_sha]]"
         CPU_COUNT="1"
-        DO_CLEAN="false"
+        DO_CLEAN="true"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
         IS_LOCAL_LEADER="true"
         CU_URL="https://cu.anyone.permaweb.services"
