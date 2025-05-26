@@ -3,6 +3,11 @@ job "facilitator-controller-redis-stage" {
   type = "service"
   namespace = "stage-protocol"
 
+  constraint {
+    attribute = "${meta.pool}"
+    value = "stage"
+  }
+  
   group "facilitator-controller-redis-stage-group" {
     count = 1
 

@@ -3,6 +3,11 @@ job "facilitator-controller-stage" {
   type = "service"
   namespace = "stage-protocol"
 
+  constraint {
+    attribute = "${meta.pool}"
+    value = "stage"
+  }
+
   group "facilitator-controller-stage-group" { 
     count = 2
 
