@@ -18,6 +18,19 @@ job "facilitator-controller-redis-stage" {
       }
     }
 
+    service {
+      name = "facilitator-controller-redis-stage"
+      port = "redis"
+      tags = ["logging"]
+      check {
+        name     = "facilitator controller stage redis health check"
+        type     = "tcp"
+        interval = "5s"
+        timeout  = "10s"
+        address_mode = "alloc"
+      }
+    }
+
     task "facilitator-controller-redis-stage-task" {
       driver = "docker"
       config {
@@ -31,18 +44,6 @@ job "facilitator-controller-redis-stage" {
       resources {
         cpu    = 2048
         memory = 4096
-      }
-
-      service {
-        name = "facilitator-controller-redis-stage"
-        port = "redis"
-        tags = ["logging"]
-        check {
-          name     = "facilitator controller stage redis health check"
-          type     = "tcp"
-          interval = "5s"
-          timeout  = "10s"
-        }
       }
 
       template {
