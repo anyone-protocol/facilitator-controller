@@ -101,6 +101,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
 
   async onApplicationBootstrap() {
     if (this.useFacility == 'true') {
+      this.logger.log('Bootstrapping with Facilitator')
       this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
         (provider => {
           this.provider = provider
@@ -111,12 +112,14 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
           )
         }).bind(this)
       )
+      this.logger.log(`Bootstraped Facilitator provider: ${this.provider}`)
       this.facilitatorContract = new ethers.Contract(
         this.facilitatorAddress,
         facilitatorABI,
         this.provider
       )
 
+      this.logger.log(`Bootstraped Facilitator contract: ${this.facilitatorContract}`)
       const eventsDiscoveryServiceState =
         await this.eventsDiscoveryServiceStateModel.findOne()
 
