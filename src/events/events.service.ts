@@ -53,7 +53,7 @@ export class EventsService
   private facilitatorContract: ethers.Contract
   private facilitySignerContract: any
 
-  private hodlerAddress: string | undefined
+  private hodlerContractAddress: string | undefined
   private hodlerContract: ethers.Contract
   private hodlerOperatorKey: string | undefined
   private hodlerOperator: ethers.Wallet
@@ -116,12 +116,12 @@ export class EventsService
     }
 
     if (this.useHodler == 'true') {
-      this.hodlerAddress = this.config.get<string>(
+      this.hodlerContractAddress = this.config.get<string>(
         'HODLER_CONTRACT_ADDRESS',
         { infer: true }
       )
 
-      if (!this.hodlerAddress) {
+      if (!this.hodlerContractAddress) {
         throw new Error('HODLER_CONTRACT_ADDRESS is not set!')
       }
 
@@ -153,7 +153,7 @@ export class EventsService
 
     this.logger.log(
       `Initializing events service (IS_LIVE: ${this.isLive}, ` +
-        `FACILITATOR: ${this.facilitatorAddress} HODLER: ${this.hodlerAddress})`
+        `FACILITATOR: ${this.facilitatorAddress} HODLER: ${this.hodlerContractAddress})`
     )
   }
 
@@ -196,7 +196,7 @@ export class EventsService
       )
     }
 
-    if (this.hodlerAddress != undefined) {
+    if (this.hodlerContractAddress != undefined) {
       this.tokenContract = new ethers.Contract(
         this.tokenAddress,
         ['function approve(address spender, uint256 amount)'],
@@ -473,7 +473,7 @@ export class EventsService
         this.provider
       )
 
-      if (this.hodlerAddress == undefined) {
+      if (this.hodlerContractAddress == undefined) {
         this.logger.error(
           'Missing HODLER_CONTRACT_ADDRESS. ' +
             'Skipping Hodler subscription'
@@ -481,7 +481,7 @@ export class EventsService
       } else {
         this.logger.log(
           `Subscribing to the Hodler contract ` +
-            `${this.hodlerAddress} with ` +
+            `${this.hodlerContractAddress} with ` +
             `rewards pool [${this.rewardsPool.address}] and ` +
             `hodler operator [${this.hodlerOperator.address}]`
         )
@@ -491,7 +491,7 @@ export class EventsService
         }
 
         this.hodlerContract = new ethers.Contract(
-          this.hodlerAddress,
+          this.hodlerContractAddress,
           hodlerABI,
           this.provider
         )
@@ -633,18 +633,20 @@ export class EventsService
       } else {
         try {
           const totalReward = stakingReward.plus(relayReward)
-          this.logger.log(`Preapproving hodler for total ${totalReward.toFixed(0)} = ` +
+          const receiverAddress = (requestedRedeem)? hodlerAddress : this.hodlerContractAddress
+
+          this.logger.log(`Preapproving ${receiverAddress} for total ${totalReward.toFixed(0)} = ` +
             `staking [${stakingReward.toFixed(0)}] + relay [${relayReward.toFixed(0)}]...`
           )
 
           // @ts-ignore
           const approveReceipt = await this.tokenContract.connect(this.rewardsPool).approve(
-            this.hodlerOperator.address,
+            receiverAddress,
             totalReward.toFixed(0)
           )
           const approveTx = await approveReceipt.wait()
           this.logger.log(
-            `Preapproved controller for total ${totalReward.toFixed(0)} tx: [${approveTx.hash}]`
+            `Preapproved ${receiverAddress} for total ${totalReward.toFixed(0)} tx: [${approveTx.hash}]`
           )
 
           this.logger.log(
