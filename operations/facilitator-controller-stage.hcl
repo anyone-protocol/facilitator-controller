@@ -74,6 +74,7 @@ job "facilitator-controller-stage" {
       template {
         data = <<-EOH
         RELAY_REWARDS_PROCESS_ID="[[ consulKey "smart-contracts/stage/relay-rewards-address" ]]"
+        STAKING_REWARDS_PROCESS_ID="[[ consulKey "smart-contracts/stage/staking-rewards-address" ]]"
         FACILITY_CONTRACT_ADDRESS="[[ consulKey "facilitator/sepolia/stage/address" ]]"
 
         {{- range service "validator-stage-mongo" }}
