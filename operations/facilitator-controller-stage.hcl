@@ -4,8 +4,8 @@ job "facilitator-controller-stage" {
   namespace = "stage-protocol"
 
   constraint {
-    attribute = "${node.unique.id}"
-    value = "89b957c9-560a-126e-1ae8-13277258fcf1" # anon-hel-arweave-1
+    attribute = "${meta.pool}"
+    value = "stage"
   }
 
   group "facilitator-controller-stage-group" { 
@@ -23,9 +23,6 @@ job "facilitator-controller-stage" {
       mode = "bridge"
       port "facilitator-controller-port" {
         to = 3000
-        host_network = "wireguard"
-      }
-      port "redis" {
         host_network = "wireguard"
       }
     }
@@ -97,7 +94,7 @@ job "facilitator-controller-stage" {
         IS_LIVE="true"
         VERSION="[[.commit_sha]]"
         CPU_COUNT="1"
-        DO_CLEAN="false"
+        DO_CLEAN="true"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         IS_LOCAL_LEADER="true"
         CU_URL="https://cu.anyone.permaweb.services"

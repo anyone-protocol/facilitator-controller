@@ -3,6 +3,11 @@ job "facilitator-controller-live" {
   type = "service"
   namespace = "live-protocol"
 
+  constraint {
+    attribute = "${meta.pool}"
+    value = "live-protocol"
+  }
+
   group "facilitator-controller-live-group" {
     count = 2
 
@@ -18,9 +23,6 @@ job "facilitator-controller-live" {
       mode = "bridge"
       port "facilitator-controller-port" {
         to = 3000
-        host_network = "wireguard"
-      }
-      port "redis" {
         host_network = "wireguard"
       }
     }
@@ -80,7 +82,7 @@ job "facilitator-controller-live" {
         IS_LIVE="true"
         VERSION="[[.commit_sha]]"
         CPU_COUNT="1"
-        DO_CLEAN="false"
+        DO_CLEAN="true"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
         IS_LOCAL_LEADER="true"
         CU_URL="https://cu.anyone.permaweb.services"

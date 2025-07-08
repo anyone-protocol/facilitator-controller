@@ -3,6 +3,11 @@ job "facilitator-controller-redis-stage" {
   type = "service"
   namespace = "stage-protocol"
 
+  constraint {
+    attribute = "${meta.pool}"
+    value = "stage"
+  }
+  
   group "facilitator-controller-redis-stage-group" {
     count = 1
 
@@ -10,6 +15,19 @@ job "facilitator-controller-redis-stage" {
       mode = "bridge"
       port "redis" {
         host_network = "wireguard"
+      }
+    }
+
+    service {
+      name = "facilitator-controller-redis-stage"
+      port = "redis"
+      tags = ["logging"]
+      check {
+        name     = "facilitator controller stage redis health check"
+        type     = "tcp"
+        interval = "5s"
+        timeout  = "10s"
+        address_mode = "alloc"
       }
     }
 
@@ -26,18 +44,6 @@ job "facilitator-controller-redis-stage" {
       resources {
         cpu    = 2048
         memory = 4096
-      }
-
-      service {
-        name = "facilitator-controller-redis-stage"
-        port = "redis"
-        tags = ["logging"]
-        check {
-          name     = "facilitator controller stage redis health check"
-          type     = "tcp"
-          interval = "5s"
-          timeout  = "10s"
-        }
       }
 
       template {

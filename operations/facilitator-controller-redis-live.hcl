@@ -2,6 +2,11 @@ job "facilitator-controller-redis-live" {
   datacenters = ["ator-fin"]
   type = "service"
   namespace = "live-protocol"
+  
+  constraint {
+    attribute = "${meta.pool}"
+    value = "live-protocol"
+  }
 
   group "facilitator-controller-redis-live-group" {
     count = 1
@@ -10,6 +15,19 @@ job "facilitator-controller-redis-live" {
       mode = "bridge"
       port "redis" {
         host_network = "wireguard"
+      }
+    }
+
+    service {
+      name = "facilitator-controller-redis-live"
+      port = "redis"
+      tags = ["logging"]
+      check {
+        name     = "facilitator controller live redis health check"
+        type     = "tcp"
+        interval = "5s"
+        timeout  = "10s"
+        address_mode = "alloc"
       }
     }
 
@@ -26,18 +44,6 @@ job "facilitator-controller-redis-live" {
       resources {
         cpu    = 2048
         memory = 4096
-      }
-
-      service {
-        name = "facilitator-controller-redis-live"
-        port = "redis"
-        tags = ["logging"]
-        check {
-          name     = "facilitator controller live redis health check"
-          type     = "tcp"
-          interval = "5s"
-          timeout  = "10s"
-        }
       }
 
       template {
