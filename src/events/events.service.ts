@@ -723,7 +723,7 @@ export class EventsService
         `retries for ${rewards[0].address}`
     )
     this.hodlerUpdatesQueue.add(
-      'recover-reward',
+      'recover-update-rewards',
       recoverData,
       EventsService.jobOpts
     )
