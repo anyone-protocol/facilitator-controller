@@ -614,7 +614,7 @@ export class EventsService
     for (const reward of data) {
       if (reward.address != hodlerAddress) {
         this.logger.error(
-          `Hodler address mismatch: ${hodlerAddress} != ${reward.address}`
+          `Hodler address mismatch: ${hodlerAddress} != ${reward.address} in ${JSON.stringify(data)}`
         )
         return false
       }

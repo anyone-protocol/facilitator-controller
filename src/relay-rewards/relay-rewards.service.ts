@@ -78,11 +78,11 @@ export class RelayRewardsService {
 
     this.logger.log(`Get-Rewards response from AO for ${address}: ${result.Messages[0].Data}`)
 
-    const amount = BigNumber(JSON.parse(result.Messages[0].Data)).toString()
+    const amount = BigNumber(JSON.parse(result.Messages[0].Data)).toFixed(0)
 
     if (amount === 'NaN') {
       this.logger.warn(
-        `Undefined amount for ${address}: ${result.Messages[0].Data}`
+        `Undefined amount for ${address}: ${result.Messages[0].Data} -> ${amount}`
       )
 
       return undefined
