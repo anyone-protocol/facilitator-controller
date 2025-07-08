@@ -35,7 +35,7 @@ export class EventsService
   private useHodler?: string
   private useFacility?: string
 
-  private static readonly maxUpdateAllocationRetries = 6
+  private static readonly maxUpdateAllocationRetries = 2
 
   private static readonly removeOnComplete = true
   private static readonly removeOnFail = 8
