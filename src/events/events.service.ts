@@ -613,14 +613,14 @@ export class EventsService
     var relayReward = BigNumber(0)
     for (const reward of data) {
       if (reward.address != hodlerAddress) {
-        this.logger.error(
+        this.logger.warn(
           `Hodler address mismatch: ${hodlerAddress} != ${reward.address} in ${JSON.stringify(data)}`
         )
-        return false
-      }
-      switch (reward.kind) {
-        case 'relay': relayReward = relayReward.plus(reward.amount); break
-        case 'staking': stakingReward = stakingReward.plus(reward.amount); break
+      } else {
+        switch (reward.kind) {
+          case 'relay': relayReward = relayReward.plus(reward.amount); break
+          case 'staking': stakingReward = stakingReward.plus(reward.amount); break
+        }
       }
     }
 

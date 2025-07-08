@@ -64,7 +64,6 @@ export class RelayRewardsService {
     }
   }
 
-
   public async getAllocation(
     address: string
   ): Promise<{ address: string, amount: string }> {
@@ -106,19 +105,19 @@ export class RelayRewardsService {
       ]
     })
 
-    this.logger.log(`Get-Rewards response from AO for ${address}: ${result.Messages[0].Data}`)
+    this.logger.log(`Claim-Rewards response from AO for ${address}: ${result.Messages[0].Data}`)
 
-    const amount = BigNumber(result.Messages[0].Data).toString()
+    const amount = BigNumber(JSON.parse(result.Messages[0].Data)).toFixed(0)
 
     if (amount === 'NaN') {
       this.logger.warn(
-        `Undefined amount for ${address}: ${result.Messages[0].Data}`
+        `Undefined amount for ${address}: ${result.Messages[0].Data} -> ${amount}`
       )
 
-      return false
+      return { address, amount: '0', kind: 'relay' }
     }
 
-    this.logger.log(`Got allocation for ${address}: ${amount}`)
+    this.logger.log(`Claimed rewards for ${address}: ${amount}`)
 
     return { address, amount, kind: 'relay' }
   }
