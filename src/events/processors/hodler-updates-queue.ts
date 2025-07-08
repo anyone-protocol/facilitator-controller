@@ -3,12 +3,9 @@ import { Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
 
 import { EventsService } from '../events.service'
-import { RewardAllocationData } from '../dto/reward-allocation-data'
-import { RecoverUpdateAllocationData } from '../dto/recover-update-allocation-data'
 import { RelayRewardsService } from '../../relay-rewards/relay-rewards.service'
 import { ClaimedRewardsData } from '../dto/claimed-rewards-data'
 import { StakingRewardsService } from 'src/staking-rewards/staking-rewards.service'
-import BigNumber from 'bignumber.js'
 import { ClaimedConfigData } from '../dto/claimed-config-data'
 import { RecoverRewardsData } from '../dto/recover-rewards-data'
 

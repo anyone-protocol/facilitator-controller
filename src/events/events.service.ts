@@ -507,7 +507,7 @@ export class EventsService
 
   private async onHodlerUpdateRewards(
     account: AddressLike,
-    gasEstimate: BigNumber,
+    gasEstimate: BigInt,
     redeem: boolean,
     { log }: { log: ethers.EventLog }
   ) {
@@ -537,7 +537,7 @@ export class EventsService
 
   public async enqueueUpdateRewards(
     account: string,
-    gasEstimate: BigNumber,
+    gasEstimate: BigInt,
     requestedRedeem: boolean,
     transactionHash?: string
   ) {
@@ -602,7 +602,7 @@ export class EventsService
     }
   }
 
-  public async updateClaimedRewards(data: ClaimedRewardsData[], gasEstimate: BigNumber, requestedRedeem: boolean): Promise<boolean> {
+  public async updateClaimedRewards(data: ClaimedRewardsData[], gasEstimate: BigInt, requestedRedeem: boolean): Promise<boolean> {
     if (data.length === 0) {
       this.logger.warn('No rewards to update')
       return true
