@@ -345,7 +345,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     )
 
     for (const { requestingAddress, transactionHash, gasEstimate, redeem } of unmatchedToQueue) {
-      await this.eventsService.enqueueUpdateRewards(requestingAddress, BigInt(gasEstimate), redeem, transactionHash)
+      await this.eventsService.enqueueUpdateRewards(requestingAddress, gasEstimate, redeem, transactionHash)
     }
 
     const duplicateAddresses = unmatchedEvents.length - unmatchedToQueue.length

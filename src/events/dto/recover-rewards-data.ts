@@ -3,7 +3,7 @@ import { ClaimedRewardsData } from "./claimed-rewards-data"
 
 export class RecoverRewardsData {
   retries: number
-  gas: BigInt
+  gas: string
   redeem: boolean
   rewards: ClaimedRewardsData[]
 }

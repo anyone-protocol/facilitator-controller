@@ -9,7 +9,7 @@ import {
 import { Queue, FlowProducer, Job } from 'bullmq'
 import { ConfigService } from '@nestjs/config'
 import BigNumber from 'bignumber.js'
-import { ethers, AddressLike } from 'ethers'
+import { ethers, AddressLike, BigNumberish } from 'ethers'
 
 import { RecoverUpdateAllocationData } from './dto/recover-update-allocation-data'
 import { RewardAllocationData } from './dto/reward-allocation-data'
@@ -507,7 +507,7 @@ export class EventsService
 
   private async onHodlerUpdateRewards(
     account: AddressLike,
-    gasEstimate: BigInt,
+    gasEstimate: BigNumberish,
     redeem: boolean,
     { log }: { log: ethers.EventLog }
   ) {
@@ -524,7 +524,7 @@ export class EventsService
       this.logger.log(`Queueing rewards update for ${accountString}`)
       await this.enqueueUpdateRewards(
         accountString,
-        gasEstimate,
+        gasEstimate.toString(),
         redeem,
         log.transactionHash
       )
@@ -537,7 +537,7 @@ export class EventsService
 
   public async enqueueUpdateRewards(
     account: string,
-    gasEstimate: BigInt,
+    gasEstimate: string,
     requestedRedeem: boolean,
     transactionHash?: string
   ) {
@@ -602,7 +602,7 @@ export class EventsService
     }
   }
 
-  public async updateClaimedRewards(data: ClaimedRewardsData[], gasEstimate: BigInt, requestedRedeem: boolean): Promise<boolean> {
+  public async updateClaimedRewards(data: ClaimedRewardsData[], gasEstimate: string, requestedRedeem: boolean): Promise<boolean> {
     if (data.length === 0) {
       this.logger.warn('No rewards to update')
       return true
@@ -654,7 +654,7 @@ export class EventsService
             hodlerAddress,
             relayReward.toFixed(0),
             stakingReward.toFixed(0),
-            gasEstimate,
+            BigInt(gasEstimate).valueOf(),
             requestedRedeem
           )
           const tx = await receipt.wait()
