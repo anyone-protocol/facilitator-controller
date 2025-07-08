@@ -482,7 +482,8 @@ export class EventsService
         this.logger.log(
           `Subscribing to the Hodler contract ` +
             `${this.hodlerAddress} with ` +
-            `${this.hodlerOperator.address}...`
+            `rewards pool [${this.rewardsPool.address}] and ` +
+            `hodler operator [${this.hodlerOperator.address}]`
         )
 
         if (this.hodlerContract) {
