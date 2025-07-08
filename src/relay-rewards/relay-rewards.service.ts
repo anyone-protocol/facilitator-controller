@@ -78,7 +78,7 @@ export class RelayRewardsService {
 
     this.logger.log(`Get-Rewards response from AO for ${address}: ${result.Messages[0].Data}`)
 
-    const amount = BigNumber(result.Messages[0].Data).toString()
+    const amount = BigNumber(JSON.parse(result.Messages[0].Data)).toString()
 
     if (amount === 'NaN') {
       this.logger.warn(
