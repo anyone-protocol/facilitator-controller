@@ -679,8 +679,8 @@ export class EventsService
 
             const isPassable = this.isRewardPassable(updateError.reason)
             if (isPassable) {
-              this.logger.warn(
-                `Reward tx rejected: ${updateError.reason}`
+              this.logger.log(
+                `Reward tx ignored: ${updateError.reason}`
               )
             } else {
               this.logger.error(
