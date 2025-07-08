@@ -654,7 +654,7 @@ export class EventsService
             hodlerAddress,
             relayReward.toFixed(0),
             stakingReward.toFixed(0),
-            BigInt(gasEstimate).valueOf(),
+            BigNumber(gasEstimate).toFixed(0),
             requestedRedeem
           )
           const tx = await receipt.wait()
@@ -738,8 +738,8 @@ export class EventsService
       `Retry recover-reward job with ${recoverData.retries} retries for ` +
         `${recoverData.rewards[0].address}`
     )
-    this.facilitatorUpdatesQueue.add(
-      'recover-reward',
+    this.hodlerUpdatesQueue.add(
+      'recover-update-rewards',
       retryData,
       EventsService.jobOpts
     )
