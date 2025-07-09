@@ -9,7 +9,7 @@ import {
 import { Queue, FlowProducer, Job } from 'bullmq'
 import { ConfigService } from '@nestjs/config'
 import BigNumber from 'bignumber.js'
-import { ethers, AddressLike } from 'ethers'
+import { ethers, AddressLike, BigNumberish } from 'ethers'
 
 import { RecoverUpdateAllocationData } from './dto/recover-update-allocation-data'
 import { RewardAllocationData } from './dto/reward-allocation-data'
@@ -35,7 +35,7 @@ export class EventsService
   private useHodler?: string
   private useFacility?: string
 
-  private static readonly maxUpdateAllocationRetries = 6
+  private static readonly maxUpdateAllocationRetries = 2
 
   private static readonly removeOnComplete = true
   private static readonly removeOnFail = 8
@@ -53,7 +53,7 @@ export class EventsService
   private facilitatorContract: ethers.Contract
   private facilitySignerContract: any
 
-  private hodlerAddress: string | undefined
+  private hodlerContractAddress: string | undefined
   private hodlerContract: ethers.Contract
   private hodlerOperatorKey: string | undefined
   private hodlerOperator: ethers.Wallet
@@ -116,12 +116,12 @@ export class EventsService
     }
 
     if (this.useHodler == 'true') {
-      this.hodlerAddress = this.config.get<string>(
+      this.hodlerContractAddress = this.config.get<string>(
         'HODLER_CONTRACT_ADDRESS',
         { infer: true }
       )
 
-      if (!this.hodlerAddress) {
+      if (!this.hodlerContractAddress) {
         throw new Error('HODLER_CONTRACT_ADDRESS is not set!')
       }
 
@@ -153,7 +153,7 @@ export class EventsService
 
     this.logger.log(
       `Initializing events service (IS_LIVE: ${this.isLive}, ` +
-        `FACILITATOR: ${this.facilitatorAddress} HODLER: ${this.hodlerAddress})`
+        `FACILITATOR: ${this.facilitatorAddress} HODLER: ${this.hodlerContractAddress})`
     )
   }
 
@@ -196,7 +196,7 @@ export class EventsService
       )
     }
 
-    if (this.hodlerAddress != undefined) {
+    if (this.hodlerContractAddress != undefined) {
       this.tokenContract = new ethers.Contract(
         this.tokenAddress,
         ['function approve(address spender, uint256 amount)'],
@@ -473,7 +473,7 @@ export class EventsService
         this.provider
       )
 
-      if (this.hodlerAddress == undefined) {
+      if (this.hodlerContractAddress == undefined) {
         this.logger.error(
           'Missing HODLER_CONTRACT_ADDRESS. ' +
             'Skipping Hodler subscription'
@@ -481,8 +481,9 @@ export class EventsService
       } else {
         this.logger.log(
           `Subscribing to the Hodler contract ` +
-            `${this.hodlerAddress} with ` +
-            `${this.hodlerOperator.address}...`
+            `${this.hodlerContractAddress} with ` +
+            `rewards pool [${this.rewardsPool.address}] and ` +
+            `hodler operator [${this.hodlerOperator.address}]`
         )
 
         if (this.hodlerContract) {
@@ -490,7 +491,7 @@ export class EventsService
         }
 
         this.hodlerContract = new ethers.Contract(
-          this.hodlerAddress,
+          this.hodlerContractAddress,
           hodlerABI,
           this.provider
         )
@@ -507,7 +508,7 @@ export class EventsService
 
   private async onHodlerUpdateRewards(
     account: AddressLike,
-    gasEstimate: BigInt,
+    gasEstimate: BigNumberish,
     redeem: boolean,
     { log }: { log: ethers.EventLog }
   ) {
@@ -524,7 +525,7 @@ export class EventsService
       this.logger.log(`Queueing rewards update for ${accountString}`)
       await this.enqueueUpdateRewards(
         accountString,
-        gasEstimate,
+        gasEstimate.toString(),
         redeem,
         log.transactionHash
       )
@@ -537,7 +538,7 @@ export class EventsService
 
   public async enqueueUpdateRewards(
     account: string,
-    gasEstimate: BigInt,
+    gasEstimate: string,
     requestedRedeem: boolean,
     transactionHash?: string
   ) {
@@ -602,7 +603,7 @@ export class EventsService
     }
   }
 
-  public async updateClaimedRewards(data: ClaimedRewardsData[], gasEstimate: BigInt, requestedRedeem: boolean): Promise<boolean> {
+  public async updateClaimedRewards(data: ClaimedRewardsData[], gasEstimate: string, requestedRedeem: boolean): Promise<boolean> {
     if (data.length === 0) {
       this.logger.warn('No rewards to update')
       return true
@@ -613,14 +614,14 @@ export class EventsService
     var relayReward = BigNumber(0)
     for (const reward of data) {
       if (reward.address != hodlerAddress) {
-        this.logger.error(
-          `Hodler address mismatch: ${hodlerAddress} != ${reward.address}`
+        this.logger.warn(
+          `Hodler address mismatch: ${hodlerAddress} != ${reward.address} in ${JSON.stringify(data)}`
         )
-        return false
-      }
-      switch (reward.kind) {
-        case 'relay': relayReward = relayReward.plus(reward.amount); break
-        case 'staking': stakingReward = stakingReward.plus(reward.amount); break
+      } else {
+        switch (reward.kind) {
+          case 'relay': relayReward = relayReward.plus(reward.amount); break
+          case 'staking': stakingReward = stakingReward.plus(reward.amount); break
+        }
       }
     }
 
@@ -632,18 +633,20 @@ export class EventsService
       } else {
         try {
           const totalReward = stakingReward.plus(relayReward)
-          this.logger.log(`Preapproving hodler for total ${totalReward.toFixed(0)} = ` +
+          const receiverAddress = (requestedRedeem)? hodlerAddress : this.hodlerContractAddress
+
+          this.logger.log(`Preapproving ${receiverAddress} for total ${totalReward.toFixed(0)} = ` +
             `staking [${stakingReward.toFixed(0)}] + relay [${relayReward.toFixed(0)}]...`
           )
 
           // @ts-ignore
           const approveReceipt = await this.tokenContract.connect(this.rewardsPool).approve(
-            this.hodlerOperator.address,
+            receiverAddress,
             totalReward.toFixed(0)
           )
           const approveTx = await approveReceipt.wait()
           this.logger.log(
-            `Preapproved controller for total ${totalReward.toFixed(0)} tx: [${approveTx.hash}]`
+            `Preapproved ${receiverAddress} for total ${totalReward.toFixed(0)} tx: [${approveTx.hash}]`
           )
 
           this.logger.log(
@@ -654,7 +657,7 @@ export class EventsService
             hodlerAddress,
             relayReward.toFixed(0),
             stakingReward.toFixed(0),
-            gasEstimate,
+            BigNumber(gasEstimate).toFixed(0),
             requestedRedeem
           )
           const tx = await receipt.wait()
@@ -676,8 +679,8 @@ export class EventsService
 
             const isPassable = this.isRewardPassable(updateError.reason)
             if (isPassable) {
-              this.logger.warn(
-                `Reward tx rejected: ${updateError.reason}`
+              this.logger.log(
+                `Reward tx ignored: ${updateError.reason}`
               )
             } else {
               this.logger.error(
@@ -723,7 +726,7 @@ export class EventsService
         `retries for ${rewards[0].address}`
     )
     this.hodlerUpdatesQueue.add(
-      'recover-reward',
+      'recover-update-rewards',
       recoverData,
       EventsService.jobOpts
     )
@@ -738,8 +741,8 @@ export class EventsService
       `Retry recover-reward job with ${recoverData.retries} retries for ` +
         `${recoverData.rewards[0].address}`
     )
-    this.facilitatorUpdatesQueue.add(
-      'recover-reward',
+    this.hodlerUpdatesQueue.add(
+      'recover-update-rewards',
       retryData,
       EventsService.jobOpts
     )

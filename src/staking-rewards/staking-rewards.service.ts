@@ -85,7 +85,7 @@ export class StakingRewardsService implements OnApplicationBootstrap {
       totalRewards = totalRewards.plus(amount)
     }
 
-    const rewarded = totalRewards.toString()
+    const rewarded = totalRewards.toFixed(0)
 
     if (rewarded === 'NaN') {
       this.logger.warn(

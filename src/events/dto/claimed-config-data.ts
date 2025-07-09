@@ -1,6 +1,6 @@
 import BigNumber from "bignumber.js"
 
 export class ClaimedConfigData {
-  gas: BigInt
+  gas: string
   redeem: boolean
 }
