@@ -1,6 +1,4 @@
-
 name: Release New Facilitator Controller Version
-
 on:
   push:
     branches: master
@@ -8,7 +6,6 @@ on:
       - v*
 env:
   IMAGE_NAME: facilitator-controller
-
 jobs:
   push:
     runs-on: ubuntu-latest
@@ -53,15 +50,14 @@ jobs:
           NOMAD_CACERT: operations/admin-ui-ca.crt
           NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN_FACILITATOR_CONTROLLER_DEPLOY }}
           NOMAD_ADDR: ${{ secrets.NOMAD_ADDR }}
-          CONSUL_CACERT: operations/admin-ui-ca.crt
-          CONSUL_HTTP_TOKEN: ${{ secrets.CONSUL_HTTP_TOKEN_FACILITATOR_CONTROLLER_DEPLOY }}
-          CONSUL_ADDR: ${{ secrets.CONSUL_ADDR }}
         run: |
-          curl -L https://releases.hashicorp.com/levant/0.3.2/levant_0.3.2_linux_amd64.zip -o levant.zip
-          unzip levant.zip
-          [[ -n $(grep "stage" deploy-vars.json) ]] && ./levant render -var-file="deploy-vars.json" -consul-address=$CONSUL_ADDR -out runtime-job.hcl operations/facilitator-controller-stage.hcl
-          [[ -z $(grep "stage" deploy-vars.json) ]] && ./levant render -var-file="deploy-vars.json" -consul-address=$CONSUL_ADDR -out runtime-job.hcl operations/facilitator-controller-live.hcl
-
-          curl -L https://releases.hashicorp.com/nomad/1.8.3/nomad_1.8.3_linux_amd64.zip -o nomad.zip
+          curl -L https://releases.hashicorp.com/nomad/1.10.2/nomad_1.10.2_linux_amd64.zip -o nomad.zip
           unzip nomad.zip
-          ./nomad job run runtime-job.hcl
+
+          if grep -q "stage" deploy-vars.json; then
+            sed -i "s/\[\[ .commit_sha \]\]/${GITHUB_SHA}/g" operations/facilitator-controller-stage.hcl
+            ./nomad job run operations/facilitator-controller-stage.hcl
+          else
+            sed -i "s/\[\[ .commit_sha \]\]/${GITHUB_SHA}/g" operations/facilitator-controller-live.hcl
+            ./nomad job run operations/facilitator-controller-live.hcl
+          fi

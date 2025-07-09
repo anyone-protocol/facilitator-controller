@@ -30,7 +30,7 @@ job "facilitator-controller-stage" {
     task "facilitator-controller-stage-service" {
       driver = "docker"
       config {
-        image = "ghcr.io/anyone-protocol/facilitator-controller:[[.commit_sha]]"
+        image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
         force_pull = true
       }
 
@@ -48,20 +48,20 @@ job "facilitator-controller-stage" {
         data = <<-EOH
         {{ $allocIndex := env "NOMAD_ALLOC_INDEX" }}
         {{ with secret "kv/stage-protocol/facilitator-controller-stage"}}
-          FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY_DEPRECATED }}"
-          EVM_NETWORK="{{ .Data.data.EVM_NETWORK }}"
+        FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY_DEPRECATED }}"
+        EVM_NETWORK="{{ .Data.data.EVM_NETWORK }}"
 
-          EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print `INFURA_SEPOLIA_API_KEY_` $allocIndex) }}"
-          EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_SEPOLIA_API_KEY_` $allocIndex) }}"
+        EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print `INFURA_SEPOLIA_API_KEY_` $allocIndex) }}"
+        EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_SEPOLIA_API_KEY_` $allocIndex) }}"
 
-          HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
-          REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"
+        HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
+        REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"
 
-          STAKING_REWARDS_CONTROLLER_KEY="{{.Data.data.STAKING_REWARDS_CONTROLLER_KEY}}"
-          BUNDLER_NETWORK="{{.Data.data.BUNDLER_NETWORK}}"
-          BUNDLER_CONTROLLER_KEY="{{.Data.data.BUNDLER_CONTROLLER_KEY}}"
+        STAKING_REWARDS_CONTROLLER_KEY="{{.Data.data.STAKING_REWARDS_CONTROLLER_KEY}}"
+        BUNDLER_NETWORK="{{.Data.data.BUNDLER_NETWORK}}"
+        BUNDLER_CONTROLLER_KEY="{{.Data.data.BUNDLER_CONTROLLER_KEY}}"
 
-          RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.RELAY_REWARDS_CONTROLLER_KEY}}"
+        RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.RELAY_REWARDS_CONTROLLER_KEY}}"
         {{ end }}
         EOH
         destination = "secrets/keys.env"
@@ -70,20 +70,18 @@ job "facilitator-controller-stage" {
 
       template {
         data = <<-EOH
-        RELAY_REWARDS_PROCESS_ID="[[ consulKey "smart-contracts/stage/relay-rewards-address" ]]"
-        STAKING_REWARDS_PROCESS_ID="[[ consulKey "smart-contracts/stage/staking-rewards-address" ]]"
-        FACILITY_CONTRACT_ADDRESS="[[ consulKey "facilitator/sepolia/stage/address" ]]"
-
+        RELAY_REWARDS_PROCESS_ID="{{ key "smart-contracts/stage/relay-rewards-address" }}"
+        STAKING_REWARDS_PROCESS_ID="{{ key "smart-contracts/stage/staking-rewards-address" }}"
+        FACILITY_CONTRACT_ADDRESS="{{ key "facilitator/sepolia/stage/address" }}"
+        TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/sepolia/stage/address" }}"
+        HODLER_CONTRACT_ADDRESS="{{ key "hodler/sepolia/stage/address" }}"
         {{- range service "validator-stage-mongo" }}
-          MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-stage"
+        MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-stage"
         {{- end }}
         {{- range service "facilitator-controller-redis-stage" }}
-          REDIS_HOSTNAME="{{ .Address }}"
-          REDIS_PORT="{{ .Port }}"
+        REDIS_HOSTNAME="{{ .Address }}"
+        REDIS_PORT="{{ .Port }}"
         {{- end }}
-        
-        TOKEN_CONTRACT_ADDRESS="[[ consulKey "ator-token/sepolia/stage/address" ]]"
-        HODLER_CONTRACT_ADDRESS="[[ consulKey "hodler/sepolia/stage/address" ]]"
         EOH
         destination = "local/config.env"
         env         = true
@@ -92,7 +90,7 @@ job "facilitator-controller-stage" {
       env {
         BUMP="redeploy-rewards-4"
         IS_LIVE="true"
-        VERSION="[[.commit_sha]]"
+        VERSION="[[ .commit_sha ]]"
         CPU_COUNT="1"
         DO_CLEAN="true"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
