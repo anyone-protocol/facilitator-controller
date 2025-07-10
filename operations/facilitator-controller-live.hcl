@@ -12,11 +12,12 @@ job "facilitator-controller-live" {
     count = 2
 
     update {
-      stagger      = "30s"
-      max_parallel = 1
-      canary       = 1
-      auto_revert  = true
-      auto_promote = true
+      max_parallel     = 1
+      canary           = 2
+      min_healthy_time = "30s"
+      healthy_deadline = "5m"
+      auto_revert      = true
+      auto_promote     = true
     }
 
     network {
