@@ -12,11 +12,12 @@ job "facilitator-controller-stage" {
     count = 2
 
     update {
-      stagger      = "30s"
-      max_parallel = 1
-      canary       = 1
-      auto_revert  = true
-      auto_promote = true
+      max_parallel     = 1
+      canary           = 2
+      min_healthy_time = "30s"
+      healthy_deadline = "10m"
+      auto_revert      = true
+      auto_promote     = true
     }
 
     network {
@@ -88,7 +89,6 @@ job "facilitator-controller-stage" {
       }
 
       env {
-        BUMP="redeploy-rewards-4"
         IS_LIVE="true"
         VERSION="[[ .commit_sha ]]"
         CPU_COUNT="1"
