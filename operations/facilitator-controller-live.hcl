@@ -35,6 +35,20 @@ job "facilitator-controller-live" {
         force_pull = true
       }
 
+      env {
+        IS_LIVE="true"
+        VERSION="[[ .commit_sha ]]"
+        REDIS_MODE="sentinel"
+        REDIS_MASTER_NAME="facilitator-controller-live-redis-master"
+        CPU_COUNT="1"
+        DO_CLEAN="true"
+        FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
+        IS_LOCAL_LEADER="true"
+        CU_URL="https://cu.anyone.permaweb.services"
+        USE_HODLER="false"
+        USE_FACILITY="true"
+      }
+
       vault {
         role = "any1-nomad-workloads-controller"
       }
@@ -66,28 +80,26 @@ job "facilitator-controller-live" {
         {{- range service "validator-live-mongo" }}
         MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-live"
         {{- end }}
-        {{- range service "facilitator-controller-redis-live" }}
-        REDIS_HOSTNAME="{{ .Address }}"
-        REDIS_PORT="{{ .Port }}"
+        {{- range service "facilitator-controller-live-redis-master" }}
+        REDIS_MASTER_NAME="{{ .Name }}"
+        {{- end }}
+        {{- range service "facilitator-controller-live-sentinel-1" }}
+        REDIS_SENTINEL_1_HOST={{ .Address }}
+        REDIS_SENTINEL_1_PORT={{ .Port }}
+        {{- end }}
+        {{- range service "facilitator-controller-live-sentinel-2" }}
+        REDIS_SENTINEL_2_HOST={{ .Address }}
+        REDIS_SENTINEL_2_PORT={{ .Port }}
+        {{- end }}
+        {{- range service "facilitator-controller-live-sentinel-3" }}
+        REDIS_SENTINEL_3_HOST={{ .Address }}
+        REDIS_SENTINEL_3_PORT={{ .Port }}
         {{- end }}
         EOH
         destination = "local/config.env"
         env         = true
       }
 
-      env {
-        BUMP="1"
-        IS_LIVE="true"
-        VERSION="[[ .commit_sha ]]"
-        CPU_COUNT="1"
-        DO_CLEAN="true"
-        FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
-        IS_LOCAL_LEADER="true"
-        CU_URL="https://cu.anyone.permaweb.services"
-        USE_HODLER="false"
-        USE_FACILITY="true"
-      }
-      
       resources {
         cpu    = 4096
         memory = 8192
@@ -97,7 +109,7 @@ job "facilitator-controller-live" {
         name = "facilitator-controller-live"
         port = "facilitator-controller-port"
         tags = ["logging"]
-        
+
         check {
           name     = "Live facilitator-controller health check"
           type     = "http"
