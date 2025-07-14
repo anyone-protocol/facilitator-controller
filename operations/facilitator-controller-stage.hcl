@@ -35,6 +35,21 @@ job "facilitator-controller-stage" {
         force_pull = true
       }
 
+      env {
+        IS_LIVE="true"
+        VERSION="[[ .commit_sha ]]"
+        REDIS_MODE="sentinel"
+        REDIS_MASTER_NAME="facilitator-controller-stage-redis-master"
+        CPU_COUNT="1"
+        DO_CLEAN="true"
+        FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
+        IS_LOCAL_LEADER="true"
+        CU_URL="https://cu.anyone.permaweb.services"
+        USE_HODLER="true"
+        USE_FACILITY="false"
+        HODLER_CONTRACT_DEPLOYED_BLOCK="8190110"
+      }
+
       vault {
         role = "any1-nomad-workloads-controller"
       }
@@ -79,26 +94,24 @@ job "facilitator-controller-stage" {
         {{- range service "validator-stage-mongo" }}
         MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-stage"
         {{- end }}
-        {{- range service "facilitator-controller-redis-stage" }}
-        REDIS_HOSTNAME="{{ .Address }}"
-        REDIS_PORT="{{ .Port }}"
+        {{- range service "facilitator-controller-stage-redis-master" }}
+        REDIS_MASTER_NAME="{{ .Name }}"
+        {{- end }}
+        {{- range service "facilitator-controller-stage-sentinel-1" }}
+        REDIS_SENTINEL_1_HOST={{ .Address }}
+        REDIS_SENTINEL_1_PORT={{ .Port }}
+        {{- end }}
+        {{- range service "facilitator-controller-stage-sentinel-2" }}
+        REDIS_SENTINEL_2_HOST={{ .Address }}
+        REDIS_SENTINEL_2_PORT={{ .Port }}
+        {{- end }}
+        {{- range service "facilitator-controller-stage-sentinel-3" }}
+        REDIS_SENTINEL_3_HOST={{ .Address }}
+        REDIS_SENTINEL_3_PORT={{ .Port }}
         {{- end }}
         EOH
         destination = "local/config.env"
         env         = true
-      }
-
-      env {
-        IS_LIVE="true"
-        VERSION="[[ .commit_sha ]]"
-        CPU_COUNT="1"
-        DO_CLEAN="true"
-        FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
-        IS_LOCAL_LEADER="true"
-        CU_URL="https://cu.anyone.permaweb.services"
-        USE_HODLER="true"
-        USE_FACILITY="false"
-        HODLER_CONTRACT_DEPLOYED_BLOCK="8190110"
       }
       
       resources {
