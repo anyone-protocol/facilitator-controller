@@ -22,6 +22,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
 
   private static readonly removeOnComplete = true
   private static readonly removeOnFail = 8
+  public static readonly DEFAULT_DELAY = 1000 * 60 * 60 // 1 hour
 
   public static jobOpts = {
     removeOnComplete: RewardsDiscoveryService.removeOnComplete,
@@ -41,9 +42,8 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
 
   private state: {
     _id?: MongooseTypes.ObjectId
-    isDiscovering: boolean
     lastSafeCompleteBlock?: number
-  } = { isDiscovering: false }
+  } = {}
 
   constructor(
     private readonly config: ConfigService<{
@@ -102,6 +102,32 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
+    if (this.doClean === 'true') {
+      this.logger.log(
+        'Cleaning up discover hodler events queue because DO_CLEAN is true'
+      )
+      await this.discoverHodlerEventsQueue.obliterate({ force: true })
+    }
+
+    if (this.doDbNuke === 'true') {
+      this.logger.log(
+        'Nuking DB of update rewards events because DO_DB_NUKE is true'
+      )
+      await this.updateRewardsEventModel.deleteMany({})
+      this.logger.log(
+        'Nuked UpdateRewardsEvent collection, not nuking rewarded events'
+      )
+    }
+
+    const rewardsDiscoveryServiceState =
+      await this.rewardsDiscoveryServiceStateModel.findOne()
+
+    if (rewardsDiscoveryServiceState) {
+      this.state = rewardsDiscoveryServiceState.toObject()
+    } else {
+      await this.rewardsDiscoveryServiceStateModel.create(this.state)
+    }
+
     if (this.useHodler == 'true') {
       this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
         (provider => {
@@ -118,51 +144,19 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
         hodlerABI,
         this.provider
       )
-
-      const rewardsDiscoveryServiceState =
-        await this.rewardsDiscoveryServiceStateModel.findOne()
-
-      if (rewardsDiscoveryServiceState) {
-        this.state = rewardsDiscoveryServiceState.toObject()
-      } else {
-        await this.rewardsDiscoveryServiceStateModel.create(this.state)
-      }
     } else {
       this.logger.log(
         'Skipping bootstrap of rewards discovery service (USE_HODLER: false)'
       )
     }
 
-    if (this.doClean != 'true') {
-      this.logger.log('Skipped cleaning up old jobs')
+    if (this.useHodler == 'true') {
+      this.logger.log('Queueing immediate discovery of hodler events')
+      await this.enqueueDiscoverHodlerEventsFlow({ delayJob: 0 })
     } else {
-      this.logger.log('Cleaning up old (24hrs+) jobs')
-      await this.discoverHodlerEventsQueue.clean(24 * 60 * 60 * 1000, -1)
-      if (this.state.isDiscovering) {
-        this.state.isDiscovering = false
-        await this.updateServiceState()
-      }
-    }
-
-    if (this.doDbNuke === 'true') {
-      this.logger.log('Nuking DB')
-      await this.updateRewardsEventModel.deleteMany({})
-      this.logger.log('Nuked UpdateRewardsEvent collection, not nuking rewarded events')
-    }
-
-    if (this.state.isDiscovering) {
       this.logger.log(
-        'Discovering hodler events should already be queued'
+        'Skipping immediate discovery of hodler events (USE_HODLER: false)'
       )
-    } else {
-      if (this.useHodler == 'true') {
-        await this.enqueueDiscoverHodlerEventsFlow(0)
-        this.logger.log('Queued immediate discovery of hodler events')
-      } else {
-        this.logger.log(
-          'Skipping immediate discovery of hodler events (USE_HODLER: false)'
-        )
-      }
     }
   }
 
@@ -362,15 +356,39 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   }
 
   public async enqueueDiscoverHodlerEventsFlow(
-    delayJob: number = 1000 * 60 * 60 * 1
+    opts: {
+      delayJob?: number
+      skipActiveCheck?: boolean
+    } = {
+      delayJob: RewardsDiscoveryService.DEFAULT_DELAY,
+      skipActiveCheck: false
+    }
   ) {
-    if (!this.state.isDiscovering) {
-      this.state.isDiscovering = true
-      await this.updateServiceState()
+    this.logger.log(
+      `Checking jobs in discover hodler events queue before queueing ` +
+      `new discover hodler events flow with delay: ${opts.delayJob}ms`
+    )
+
+    let numJobsInQueue = 0
+    numJobsInQueue += await this.discoverHodlerEventsQueue.getWaitingCount()
+    numJobsInQueue += await this.discoverHodlerEventsQueue.getDelayedCount()
+    if (!opts.skipActiveCheck) {
+      numJobsInQueue += await this.discoverHodlerEventsQueue.getActiveCount()
+    }
+    if (numJobsInQueue > 0) {
+      this.logger.warn(
+        `There are ${numJobsInQueue} jobs in the discover hodler events ` +
+        `queue, not queueing new discover hodler events flow`
+      )
+      return
     }
 
     const currentBlock = await this.provider.getBlockNumber()
-
+    this.logger.log(
+      `Queueing discover hodler events flow with ` +
+        `currentBlock: ${currentBlock} ` +
+        `delay: ${opts.delayJob}ms`
+    )
     await this.discoverHodlerEventsFlow.add({
       name: DiscoverHodlerEventsQueue.JOB_MATCH_DISCOVERED_HODLER_EVENTS,
       queueName: 'discover-hodler-events-queue',
@@ -386,7 +404,10 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
             {
               name: DiscoverHodlerEventsQueue.JOB_DISCOVER_UPDATE_REWARDS_EVENTS,
               queueName: 'discover-hodler-events-queue',
-              opts: { delay: delayJob, ...RewardsDiscoveryService.jobOpts },
+              opts: {
+                delay: opts.delayJob,
+                ...RewardsDiscoveryService.jobOpts
+              },
               data: { currentBlock }
             }
           ]

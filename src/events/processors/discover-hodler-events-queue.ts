@@ -71,7 +71,10 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
           )
         } finally {
           // NB: Re-enqueue this flow
-          await this.rewardsDiscoveryService.enqueueDiscoverHodlerEventsFlow()
+          await this.rewardsDiscoveryService.enqueueDiscoverHodlerEventsFlow({
+          delayJob: RewardsDiscoveryService.DEFAULT_DELAY,
+          skipActiveCheck: true
+        })
         }
 
         return
