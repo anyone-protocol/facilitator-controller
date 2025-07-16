@@ -21,6 +21,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
 
   private static readonly removeOnComplete = true
   private static readonly removeOnFail = 8
+  public static readonly DEFAULT_DELAY = 1000 * 60 * 60 // 1 hour
 
   public static jobOpts = {
     removeOnComplete: EventsDiscoveryService.removeOnComplete,
@@ -40,9 +41,8 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
 
   private state: {
     _id?: MongooseTypes.ObjectId
-    isDiscovering: boolean
     lastSafeCompleteBlock?: number
-  } = { isDiscovering: false }
+  } = {}
 
   constructor(
     private readonly config: ConfigService<{
@@ -100,6 +100,29 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
+    if (this.doClean === 'true') {
+      this.logger.log(
+        'Cleaning up discover facilitator events queue because DO_CLEAN is true'
+      )
+      await this.discoverFacilitatorEventsQueue.obliterate({ force: true })
+    }
+
+    if (this.doDbNuke === 'true') {
+      this.logger.log(
+        'Nuking DB of requesting update events because DO_DB_NUKE is true'
+      )
+      await this.requestingUpdateEventModel.deleteMany({})
+      this.logger.log('Nuked RequestingUpdateEvent collection')
+    }
+
+    const eventsDiscoveryServiceState =
+      await this.eventsDiscoveryServiceStateModel.findOne()
+    if (eventsDiscoveryServiceState) {
+      this.state = eventsDiscoveryServiceState.toObject()
+    } else {
+      await this.eventsDiscoveryServiceStateModel.create(this.state)
+    }
+
     if (this.useFacility == 'true') {
       this.logger.log('Bootstrapping with Facilitator')
       this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
@@ -120,50 +143,19 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       )
 
       this.logger.log(`Bootstraped Facilitator contract: ${this.facilitatorContract}`)
-      const eventsDiscoveryServiceState =
-        await this.eventsDiscoveryServiceStateModel.findOne()
-
-      if (eventsDiscoveryServiceState) {
-        this.state = eventsDiscoveryServiceState.toObject()
-      } else {
-        await this.eventsDiscoveryServiceStateModel.create(this.state)
-      }
     } else {
       this.logger.log(
         `Skipped bootstrap of events service [USE_FACILITY=false]`
       )
     }
 
-    if (this.doClean != 'true') {
-      this.logger.log('Skipped cleaning up old jobs')
+    if (this.useFacility == 'true') {
+      this.logger.log('Queueing immediate discovery of facilitator events')
+      await this.enqueueDiscoverFacilitatorEventsFlow({ delayJob: 0 })
     } else {
-      this.logger.log('Cleaning up old (24hrs+) jobs')
-      await this.discoverFacilitatorEventsQueue.clean(24 * 60 * 60 * 1000, -1)
-      if (this.state.isDiscovering) {
-        this.state.isDiscovering = false
-        await this.updateServiceState()
-      }
-    }
-
-    if (this.doDbNuke === 'true') {
-      this.logger.log('Nuking DB')
-      await this.requestingUpdateEventModel.deleteMany({})
-      this.logger.log('Nuked RequestingUpdateEvent collection')
-    }
-
-    if (this.state.isDiscovering) {
       this.logger.log(
-        'Discovering facilitator events should already be queued'
+        'Skipped queuing immediate discovery of facilitator events [USE_FACILITY=false]'
       )
-    } else {
-      if (this.useFacility == 'true') {
-        await this.enqueueDiscoverFacilitatorEventsFlow(0)
-        this.logger.log('Queued immediate discovery of facilitator events')
-      } else {
-        this.logger.log(
-          'Skipped queuing immediate discovery of facilitator events [USE_FACILITY=false]'
-        )
-      }
     }
   }
 
@@ -346,15 +338,39 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   }
 
   public async enqueueDiscoverFacilitatorEventsFlow(
-    delayJob: number = 1000 * 60 * 60 * 1
+    opts: {
+      delayJob?: number
+      skipActiveCheck?: boolean
+    } = {
+      delayJob: EventsDiscoveryService.DEFAULT_DELAY,
+      skipActiveCheck: false
+    }
   ) {
-    if (!this.state.isDiscovering) {
-      this.state.isDiscovering = true
-      await this.updateServiceState()
+    this.logger.log(
+      `Checking jobs in discover facilitator events queue before queueing ` +
+      `new discover facilitator events flow with delay: ${opts.delayJob}ms`
+    )
+
+    let numJobsInQueue = 0
+    numJobsInQueue += await this.discoverFacilitatorEventsQueue.getWaitingCount()
+    numJobsInQueue += await this.discoverFacilitatorEventsQueue.getDelayedCount()
+    if (!opts.skipActiveCheck) {
+      numJobsInQueue += await this.discoverFacilitatorEventsQueue.getActiveCount()
+    }
+    if (numJobsInQueue > 0) {
+      this.logger.warn(
+        `There are ${numJobsInQueue} jobs in the discover facilitator events ` +
+        `queue, not queueing new discover facilitator events flow`
+      )
+      return
     }
 
     const currentBlock = await this.provider.getBlockNumber()
-
+    this.logger.log(
+      `Queueing discover facilitator events flow with ` +
+        `currentBlock: ${currentBlock} ` +
+        `delay: ${opts.delayJob}ms`
+    )
     await this.discoverFacilitatorEventsFlow.add({
       name: DiscoverFacilitatorEventsQueue.JOB_MATCH_DISCOVERED_FACILITATOR_EVENTS,
       queueName: 'discover-facilitator-events-queue',
@@ -370,7 +386,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
             {
               name: DiscoverFacilitatorEventsQueue.JOB_DISCOVER_REQUESTING_UPDATE_EVENTS,
               queueName: 'discover-facilitator-events-queue',
-              opts: { delay: delayJob, ...EventsDiscoveryService.jobOpts },
+              opts: { delay: opts.delayJob, ...EventsDiscoveryService.jobOpts },
               data: { currentBlock }
             }
           ]
@@ -379,7 +395,8 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     })
 
     this.logger.log(
-      '[alarm=enqueued-discover-facilitator-events] Enqueued discover facilitator events flow'
+      '[alarm=enqueued-discover-facilitator-events] ' +
+        'Enqueued discover facilitator events flow'
     )
   }
 

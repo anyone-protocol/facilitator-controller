@@ -3,9 +3,6 @@ import { HydratedDocument } from 'mongoose'
 
 @Schema()
 export class EventsDiscoveryServiceState {
-  @Prop({ type: Boolean, default: false })
-  isDiscovering: boolean
-
   @Prop({ type: Number, required: false })
   lastSafeCompleteBlock?: number
 }

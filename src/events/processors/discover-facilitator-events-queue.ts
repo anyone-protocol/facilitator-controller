@@ -72,7 +72,10 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
           )
         } finally {
           // NB: Re-enqueue this flow
-          await this.eventsDiscoveryService.enqueueDiscoverFacilitatorEventsFlow()
+          await this.eventsDiscoveryService.enqueueDiscoverFacilitatorEventsFlow({
+            delayJob: EventsDiscoveryService.DEFAULT_DELAY,
+            skipActiveCheck: true
+          })
         }
 
         return

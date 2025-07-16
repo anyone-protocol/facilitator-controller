@@ -158,6 +158,13 @@ export class EventsService
   }
 
   async onApplicationBootstrap(): Promise<void> {
+    if (this.doClean === 'true') {
+      this.logger.log(
+        'Cleaning up facilitator updates queue because DO_CLEAN is true'
+      )
+      await this.facilitatorUpdatesQueue.obliterate({ force: true })
+    }
+
     this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
       (async (provider) => {
         this.provider = provider
@@ -177,13 +184,6 @@ export class EventsService
         
       }).bind(this)
     )
-
-    if (this.doClean != 'true') {
-      this.logger.log('Skipped cleaning up old jobs')
-    } else {
-      this.logger.log('Cleaning up old (24hrs+) jobs')
-      await this.facilitatorUpdatesQueue.clean(24 * 60 * 60 * 1000, -1)
-    }
 
     if (this.facilitatorAddress != undefined) {
       this.subscribeToFacilitator().catch((error) =>
