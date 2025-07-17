@@ -72,10 +72,7 @@ job "facilitator-controller-stage" {
 
         HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
         REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"
-
         STAKING_REWARDS_CONTROLLER_KEY="{{.Data.data.STAKING_REWARDS_CONTROLLER_KEY}}"
-        BUNDLER_NETWORK="{{.Data.data.BUNDLER_NETWORK}}"
-        BUNDLER_CONTROLLER_KEY="{{.Data.data.BUNDLER_CONTROLLER_KEY}}"
 
         RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.RELAY_REWARDS_CONTROLLER_KEY}}"
         {{ end }}
