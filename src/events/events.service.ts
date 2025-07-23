@@ -503,11 +503,21 @@ export class EventsService
           this.hodlerOperator
         )
         this.logger.log(`Attaching hodler UpdateRewards event listener...`)
-        this.hodlerContract.on(
-          HODLER_EVENTS.UpdateRewards,
-          this.onHodlerUpdateRewards.bind(this)
-        )
-        this.logger.log(`Successfully subscribed to Hodler events!`)
+        try {
+          await this.hodlerContract.on(
+            HODLER_EVENTS.UpdateRewards,
+            this.onHodlerUpdateRewards.bind(this)
+          )
+          this.logger.log(`Successfully subscribed to Hodler events!`)
+        } catch (error) {
+          this.logger.error(
+            `Failed to subscribe to Hodler UpdateRewards event:`,
+            error.stack
+          )
+          throw new Error(
+            `Failed to subscribe to Hodler UpdateRewards event: ${error.message}`
+          )
+        }
       }
     }
   }
