@@ -151,6 +151,7 @@ export class EvmProviderService
         {
           "jsonrpc": "2.0",
           "method": "eth_getLogs",
+          "id": 1,
           "params": [{
             "address": [ "0x853b73e080293ce696653ca466ff2c3aad92992f" ],
             "topics": [ "0x59bd3ee6f8d8e540ad4a8de7c43919e3a55c9bb9185661976b332ab2a3eafce8" ]
