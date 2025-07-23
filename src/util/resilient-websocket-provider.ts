@@ -21,6 +21,7 @@ class ResilientWebsocketProvider {
   private readonly url: string
   private readonly network: Networkish
   private terminate: boolean
+  private resolved: boolean = false
   private pingTimeout: NodeJS.Timeout | null
   private keepAliveInterval: NodeJS.Timeout | null
   private ws: WebSocket | null
@@ -53,6 +54,19 @@ class ResilientWebsocketProvider {
 
   async connect(): Promise<WebSocketProvider | null> {
     return new Promise((resolve) => {
+      const closeConnection = () => {
+        this.logger.log(`Closing connection...`)
+        this.cleanupConnection()
+        if (!this.terminate) {
+          this.reconnectionAttempts++
+          this.logger.debug(
+            `Attempting to reconnect... ` +
+              `(Attempt ${this.reconnectionAttempts})`
+          )
+          setTimeout(startConnection, RECONNECTION_DELAY)
+        }
+      }
+
       const startConnection = () => {
         if (this.reconnectionAttempts >= MAX_RECONNECTION_ATTEMPTS) {
           this.logger.error(
@@ -88,6 +102,7 @@ class ResilientWebsocketProvider {
 
             this.provider = wsp
             await this.resubscribe()
+            this.resolved = true
             resolve(this.provider)
           } catch (error) {
             this.logger.error(
@@ -104,19 +119,17 @@ class ResilientWebsocketProvider {
           this.logger.error(
             `The websocket connection was closed for ${this.name}`
           )
-          this.cleanupConnection()
-          if (!this.terminate) {
-            this.reconnectionAttempts++
-            this.logger.debug(
-              `Attempting to reconnect... ` +
-                `(Attempt ${this.reconnectionAttempts})`
-            )
-            setTimeout(startConnection, RECONNECTION_DELAY)
-          }
+          closeConnection()
         })
 
         this.ws.on('error', (error) => {
           this.logger.error(`WebSocket error for ${this.name}:`, error)
+          if (error.message.includes('429')) {
+            this.logger.error(
+              `Rate limit exceeded for ${this.name}. Retrying connection...`
+            )
+            closeConnection()
+          }
         })
 
         this.ws.on('pong', () => {
