@@ -151,7 +151,7 @@ export class EvmProviderService
         { "jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1 },
         { headers: { 'Content-Type': 'application/json' } }
       )
-      this.logger.log('Credits check result:', result.data)
+      this.logger.log(`Credits check result: ${JSON.stringify(result.data)}`)
     } catch (error) {
       this.logger.error(
         `Failed to check credits for ${providerName} WebSocket provider:`,
