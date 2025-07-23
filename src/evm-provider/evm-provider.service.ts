@@ -70,12 +70,15 @@ export class EvmProviderService
   }
 
   async onApplicationBootstrap() {
+    this.logger.log(`Bootstrapping EVM Provider Service...`)
+    this.logger.log(`Creating primary (infura) WebSocket provider...`)
     const [primaryProvider] = await createResilientProviders(
       [{ url: this.config.EVM_PRIMARY_WSS, name: 'primary (infura)' }],
       this.config.EVM_NETWORK,
       this.swapProviders.bind(this)
     )
     this.primaryWebSocketProvider = primaryProvider
+    this.logger.log(`Creating secondary (alchemy) WebSocket provider...`)
     const [secondaryProvider] = await createResilientProviders(
       [{ url: this.config.EVM_SECONDARY_WSS, name: 'secondary (alchemy)' }],
       this.config.EVM_NETWORK,
@@ -83,6 +86,7 @@ export class EvmProviderService
     )
     this.secondaryWebSocketProvider = secondaryProvider
     this.currentWebSocketProvider = this.primaryWebSocketProvider
+    this.logger.log(`EVM Provider Service bootstrapped successfully!`)
   }
 
   private swapProviders() {

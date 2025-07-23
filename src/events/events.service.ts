@@ -507,6 +507,7 @@ export class EventsService
           HODLER_EVENTS.UpdateRewards,
           this.onHodlerUpdateRewards.bind(this)
         )
+        this.logger.log(`Successfully subscribed to Hodler events!`)
       }
     }
   }
