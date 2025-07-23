@@ -103,8 +103,8 @@ export class EvmProviderService
     const secondaryProviderName = 'secondary (alchemy)'
     const secondaryProviderUrl = this.config.EVM_SECONDARY_WSS
     const secondaryCreditsCheckSuccess = await this.checkProviderCredits(
-      primaryProviderName,
-      primaryProviderUrl
+      secondaryProviderName,
+      secondaryProviderUrl
     )
     if (secondaryCreditsCheckSuccess) {
       const [secondaryProvider] = await createResilientProviders(
