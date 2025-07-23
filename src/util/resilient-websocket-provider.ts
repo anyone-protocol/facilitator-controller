@@ -204,6 +204,7 @@ async function createResilientProviders(
   network: Networkish,
   maxRetriesCallback: (...args: any[]) => void
 ): Promise<WebSocketProvider[]> {
+  const logger = new Logger(`${ResilientWebsocketProvider.name}(${this.name})`)
   const providers = await Promise.all(
     urls.map(async ({ url, name }) => {
       try {
@@ -224,7 +225,7 @@ async function createResilientProviders(
         }
         return provider
       } catch (error) {
-        this.logger.error(
+        logger.error(
           `Failed to create ResilientWebsocketProvider for ${url}:`,
           error.stack
         )
