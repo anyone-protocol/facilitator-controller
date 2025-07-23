@@ -383,7 +383,17 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
       return
     }
 
-    const currentBlock = await this.provider.getBlockNumber()
+    let currentBlock = null
+    try {
+      currentBlock = await this.provider.getBlockNumber()
+    } catch (error) {
+      this.logger.error(
+        'Not queueing new discover hodler events flow: ' +
+          'Failed to get current block number',
+        error.stack
+      )
+      return
+    }
     this.logger.log(
       `Queueing discover hodler events flow with ` +
         `currentBlock: ${currentBlock} ` +

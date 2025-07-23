@@ -365,7 +365,17 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       return
     }
 
-    const currentBlock = await this.provider.getBlockNumber()
+    let currentBlock = null
+    try {
+      currentBlock = await this.provider.getBlockNumber()
+    } catch (error) {
+      this.logger.error(
+        'Not queueing new discover facilitator events flow: ' +
+          'Failed to get current block number',
+        error.stack
+      )
+      return
+    }
     this.logger.log(
       `Queueing discover facilitator events flow with ` +
         `currentBlock: ${currentBlock} ` +
