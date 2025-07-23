@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { ethers } from 'ethers'
+import { HttpService } from '@nestjs/axios'
 
 import { createResilientProviders } from '../util/resilient-websocket-provider'
 
@@ -35,7 +36,10 @@ export class EvmProviderService
     (provider: ethers.WebSocketProvider) => void
   )[] = []
 
-  constructor(config: ConfigService<typeof DefaultEvmProviderServiceConfig>) {
+  constructor(
+    config: ConfigService<typeof DefaultEvmProviderServiceConfig>,
+    private readonly httpService: HttpService
+  ) {
     this.config.EVM_NETWORK = config.get<string>('EVM_NETWORK', { infer: true })
     if (!this.config.EVM_NETWORK) {
       throw new Error('EVM_NETWORK is not set!')
@@ -71,28 +75,54 @@ export class EvmProviderService
 
   async onApplicationBootstrap() {
     this.logger.log(`Bootstrapping EVM Provider Service...`)
+
     this.logger.log(`Creating primary (infura) WebSocket provider...`)
-    const [primaryProvider] = await createResilientProviders(
-      [{ url: this.config.EVM_PRIMARY_WSS, name: 'primary (infura)' }],
-      this.config.EVM_NETWORK,
-      this.swapProviders.bind(this)
+    const primaryProviderName = 'primary (infura)'
+    const primaryProviderUrl = this.config.EVM_PRIMARY_WSS
+    const primaryCreditsCheckSuccess = await this.checkProviderCredits(
+      primaryProviderName,
+      primaryProviderUrl
     )
-    if (!primaryProvider) {
-      this.logger.error('Failed to create primary (infura) WebSocket provider')
-    }
-    this.primaryWebSocketProvider = primaryProvider
-    this.logger.log(`Creating secondary (alchemy) WebSocket provider...`)
-    const [secondaryProvider] = await createResilientProviders(
-      [{ url: this.config.EVM_SECONDARY_WSS, name: 'secondary (alchemy)' }],
-      this.config.EVM_NETWORK,
-      this.swapProviders.bind(this)
-    )
-    if (!secondaryProvider) {
+    if (primaryCreditsCheckSuccess) {
+      const [primaryProvider] = await createResilientProviders(
+        [{ url: primaryProviderUrl, name: primaryProviderName }],
+        this.config.EVM_NETWORK,
+        this.swapProviders.bind(this)
+      )
+      if (!primaryProvider) {
+        this.logger.error('Failed to create primary (infura) WebSocket provider')
+      }
+      this.primaryWebSocketProvider = primaryProvider
+    } else {
       this.logger.error(
-        'Failed to create secondary (alchemy) WebSocket provider'
+        'Primary (infura) WebSocket provider credits check failed!'
       )
     }
-    this.secondaryWebSocketProvider = secondaryProvider
+
+    this.logger.log(`Creating secondary (alchemy) WebSocket provider...`)
+    const secondaryProviderName = 'secondary (alchemy)'
+    const secondaryProviderUrl = this.config.EVM_SECONDARY_WSS
+    const secondaryCreditsCheckSuccess = await this.checkProviderCredits(
+      primaryProviderName,
+      primaryProviderUrl
+    )
+    if (secondaryCreditsCheckSuccess) {
+      const [secondaryProvider] = await createResilientProviders(
+        [{ url: secondaryProviderUrl, name: secondaryProviderName }],
+        this.config.EVM_NETWORK,
+        this.swapProviders.bind(this)
+      )
+      if (!secondaryProvider) {
+        this.logger.error(
+          'Failed to create secondary (alchemy) WebSocket provider'
+        )
+      }
+      this.secondaryWebSocketProvider = secondaryProvider
+    } else {
+      this.logger.error(
+        'Secondary (alchemy) WebSocket provider credits check failed!'
+      )
+    }
 
     if (this.primaryWebSocketProvider) {
       this.logger.log(`Using primary (infura) WebSocket provider`)
@@ -101,11 +131,36 @@ export class EvmProviderService
       this.logger.log(`Using secondary (alchemy) WebSocket provider`)
       this.currentWebSocketProvider = this.secondaryWebSocketProvider
     } else {
-      throw new Error(
-        'No WebSocket providers available! Cannot bootstrap EVM Provider Service.'
-      )
+      throw new Error('No WebSocket providers available! Cannot bootstrap!')
     }
     this.logger.log(`EVM Provider Service bootstrapped successfully!`)
+  }
+
+  private async checkProviderCredits(
+    providerName: string,
+    providerWssUrl: string
+  ) {
+    const parts = providerWssUrl.split('/')
+    const domain = parts[2]
+    const version = parts[parts.length - 2]
+    const apiKey = parts[parts.length - 1]
+    this.logger.log(`Checking credits for ${providerName} WebSocket provider`)
+    try {
+      const result = await this.httpService.axiosRef.post(
+        `https://${domain}/${version}/${apiKey}`,
+        { "jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1 },
+        { headers: { 'Content-Type': 'application/json' } }
+      )
+      this.logger.log('Credits check result:', result.data)
+    } catch (error) {
+      this.logger.error(
+        `Failed to check credits for ${providerName} WebSocket provider:`,
+        error instanceof Error ? error.stack : error
+      )
+      return false
+    }
+
+    return true
   }
 
   private swapProviders() {
