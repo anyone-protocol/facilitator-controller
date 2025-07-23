@@ -153,7 +153,7 @@ class ResilientWebsocketProvider {
   }
 
   private async resubscribe() {
-    this.logger.log('Resubscribing to topics...')
+    this.logger.log(`Resubscribing to topics: [${this.subscriptions.size}]`)
     for (const subscription of this.subscriptions) {
       try {
         await this.provider?.on(subscription.type, subscription.listener)
