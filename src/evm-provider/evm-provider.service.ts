@@ -78,7 +78,7 @@ export class EvmProviderService
       this.swapProviders.bind(this)
     )
     if (!primaryProvider) {
-      throw new Error('Failed to create primary (infura) WebSocket provider')
+      this.logger.error('Failed to create primary (infura) WebSocket provider')
     }
     this.primaryWebSocketProvider = primaryProvider
     this.logger.log(`Creating secondary (alchemy) WebSocket provider...`)
@@ -88,10 +88,21 @@ export class EvmProviderService
       this.swapProviders.bind(this)
     )
     if (!secondaryProvider) {
-      throw new Error('Failed to create secondary (alchemy) WebSocket provider')
+      this.logger.error(
+        'Failed to create secondary (alchemy) WebSocket provider'
+      )
     }
     this.secondaryWebSocketProvider = secondaryProvider
-    this.currentWebSocketProvider = this.primaryWebSocketProvider
+
+    if (this.primaryWebSocketProvider) {
+      this.currentWebSocketProvider = this.primaryWebSocketProvider
+    } else if (this.secondaryWebSocketProvider) {
+      this.currentWebSocketProvider = this.secondaryWebSocketProvider
+    } else {
+      throw new Error(
+        'No WebSocket providers available! Cannot bootstrap EVM Provider Service.'
+      )
+    }
     this.logger.log(`EVM Provider Service bootstrapped successfully!`)
   }
 

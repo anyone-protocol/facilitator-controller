@@ -204,10 +204,10 @@ async function createResilientProviders(
   network: Networkish,
   maxRetriesCallback: (...args: any[]) => void
 ): Promise<WebSocketProvider[]> {
-  const logger = new Logger(`${ResilientWebsocketProvider.name}(${this.name})`)
   const providers = await Promise.all(
     urls.map(async ({ url, name }) => {
-      try {
+      const logger = new Logger(`${ResilientWebsocketProvider.name}(${name})`)
+      try {        
         const resilientProvider = new ResilientWebsocketProvider(
           url,
           network,
