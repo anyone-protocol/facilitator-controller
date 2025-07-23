@@ -220,7 +220,7 @@ async function createResilientProviders(
           const originalOn = provider.on.bind(provider)
           provider.on = (eventName: ProviderEvent, listener: Listener) => {
             resilientProvider.subscriptions.add({ type: eventName, listener })
-            logger.log(`Subscribed to ${eventName} for ${name}`)
+            logger.log(`Subscribed to ${eventName.toString()} for ${name}`)
             try {
               return originalOn(eventName, listener)
             } catch (error) {

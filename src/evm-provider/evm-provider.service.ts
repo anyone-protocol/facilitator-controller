@@ -95,8 +95,10 @@ export class EvmProviderService
     this.secondaryWebSocketProvider = secondaryProvider
 
     if (this.primaryWebSocketProvider) {
+      this.logger.log(`Using primary (infura) WebSocket provider`)
       this.currentWebSocketProvider = this.primaryWebSocketProvider
     } else if (this.secondaryWebSocketProvider) {
+      this.logger.log(`Using secondary (alchemy) WebSocket provider`)
       this.currentWebSocketProvider = this.secondaryWebSocketProvider
     } else {
       throw new Error(
