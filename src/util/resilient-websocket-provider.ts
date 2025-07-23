@@ -163,7 +163,10 @@ class ResilientWebsocketProvider {
       } catch (error) {
         this.logger.error(
           `Failed to resubscribe to ${subscription.type}:`,
-          error.stack          
+          error.stack
+        )
+        throw new Error(
+          `Failed to resubscribe to ${subscription.type}: ${error.message}`
         )
       }
     }
