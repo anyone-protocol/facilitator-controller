@@ -146,21 +146,26 @@ export class EvmProviderService
     const apiKey = parts[parts.length - 1]
     this.logger.log(`Checking credits for ${providerName} WebSocket provider`)
     try {
-      const result = await this.httpService.axiosRef.post(
-        `https://${domain}/${version}/${apiKey}`,
-        {
-          "jsonrpc": "2.0",
-          "method": "eth_getLogs",
-          "id": 1,
-          "params": [{
-            "address": "0x853b73e080293ce696653ca466ff2c3aad92992f",
-            "topics": [ "0x59bd3ee6f8d8e540ad4a8de7c43919e3a55c9bb9185661976b332ab2a3eafce8" ]
-          }]
-        },
-        // { "jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1 },
-        { headers: { 'Content-Type': 'application/json' } }
+      const provider = new ethers.WebSocketProvider(providerWssUrl)
+      const blockNumber = await provider.getBlockNumber()
+      this.logger.log(
+        `Successfully connected to ${providerName} WebSocket provider. Block number: ${blockNumber}`
       )
-      this.logger.log(`Credits check result: ${JSON.stringify(result.data)}`)
+      // const result = await this.httpService.axiosRef.post(
+      //   `https://${domain}/${version}/${apiKey}`,
+      //   {
+      //     "jsonrpc": "2.0",
+      //     "method": "eth_getLogs",
+      //     "id": 1,
+      //     "params": [{
+      //       "address": "0x853b73e080293ce696653ca466ff2c3aad92992f",
+      //       "topics": [ "0x59bd3ee6f8d8e540ad4a8de7c43919e3a55c9bb9185661976b332ab2a3eafce8" ]
+      //     }]
+      //   },
+      //   // { "jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1 },
+      //   { headers: { 'Content-Type': 'application/json' } }
+      // )
+      // this.logger.log(`Credits check result: ${JSON.stringify(result.data)}`)
     } catch (error) {
       this.logger.error(
         `Failed to check credits for ${providerName} WebSocket provider:`,
