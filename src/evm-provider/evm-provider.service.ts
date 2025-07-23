@@ -8,7 +8,6 @@ import { ConfigService } from '@nestjs/config'
 import { ethers } from 'ethers'
 import { HttpService } from '@nestjs/axios'
 
-import { HODLER_EVENTS, hodlerABI } from '../events/abi/hodler'
 import { createResilientProviders } from '../util/resilient-websocket-provider'
 
 const DefaultEvmProviderServiceConfig = {
@@ -37,8 +36,6 @@ export class EvmProviderService
     (provider: ethers.WebSocketProvider) => void
   )[] = []
 
-  private readonly hodlerContractAddress: string
-
   constructor(
     config: ConfigService<typeof DefaultEvmProviderServiceConfig>,
     private readonly httpService: HttpService
@@ -58,12 +55,6 @@ export class EvmProviderService
     })
     if (!this.config.EVM_SECONDARY_WSS) {
       throw new Error('EVM_SECONDARY_WSS is not set!')
-    }
-    this.hodlerContractAddress = config.get<string>('HODLER_CONTRACT_ADDRESS', {
-      infer: true
-    })
-    if (!this.hodlerContractAddress) {
-      throw new Error('HODLER_CONTRACT_ADDRESS is not set!')
     }
   }
 
@@ -149,31 +140,17 @@ export class EvmProviderService
     providerName: string,
     providerWssUrl: string
   ) {
-    const parts = providerWssUrl.split('/')
-    const domain = parts[2]
-    const version = parts[parts.length - 2]
-    const apiKey = parts[parts.length - 1]
+    // const parts = providerWssUrl.split('/')
+    // const domain = parts[2]
+    // const version = parts[parts.length - 2]
+    // const apiKey = parts[parts.length - 1]
     this.logger.log(`Checking credits for ${providerName} WebSocket provider`)
     try {
       const provider = new ethers.WebSocketProvider(providerWssUrl)
-      const hodlerContract = new ethers.Contract(
-        this.hodlerContractAddress,
-        hodlerABI,
-        provider
+      const blockNumber = await provider.getBlockNumber()
+      this.logger.log(
+        `Successfully connected to ${providerName} WebSocket provider. Block number: ${blockNumber}`
       )
-      await hodlerContract.on(
-        HODLER_EVENTS.UpdateRewards,
-        () => {}
-      ).catch(error => {
-        this.logger.error(
-          `Error subscribing to HODLER_EVENTS.UpdateRewards:`,
-          error.stack
-        )
-      })
-      // const blockNumber = await provider.getBlockNumber()
-      // this.logger.log(
-      //   `Successfully connected to ${providerName} WebSocket provider. Block number: ${blockNumber}`
-      // )
       // const result = await this.httpService.axiosRef.post(
       //   `https://${domain}/${version}/${apiKey}`,
       //   {
