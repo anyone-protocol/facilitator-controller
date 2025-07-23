@@ -518,26 +518,38 @@ export class EventsService
     redeem: boolean,
     { log }: { log: ethers.EventLog }
   ) {
-    let accountString: string
-    if (account instanceof Promise) {
-      accountString = await account
-    } else if (ethers.isAddressable(account)) {
-      accountString = await account.getAddress()
-    } else {
-      accountString = account
-    }
+    this.logger.log(
+      `Hodler UpdateRewards event for account: ${account}, ` +
+        `gasEstimate: ${gasEstimate}, redeem: ${redeem}, ` +
+        `tx: ${log.transactionHash}`
+    )
+    try {
+      let accountString: string
+      if (account instanceof Promise) {
+        accountString = await account
+      } else if (ethers.isAddressable(account)) {
+        accountString = await account.getAddress()
+      } else {
+        accountString = account
+      }
 
-    if (accountString != undefined) {
-      this.logger.log(`Queueing rewards update for ${accountString}`)
-      await this.enqueueUpdateRewards(
-        accountString,
-        gasEstimate.toString(),
-        redeem,
-        log.transactionHash
-      )
-    } else {
+      if (accountString != undefined) {
+        this.logger.log(`Queueing rewards update for ${accountString}`)
+        await this.enqueueUpdateRewards(
+          accountString,
+          gasEstimate.toString(),
+          redeem,
+          log.transactionHash
+        )
+      } else {
+        this.logger.error(
+          'Trying to request facility update but missing ' + 'address in data'
+        )
+      }
+    } catch (error) {
       this.logger.error(
-        'Trying to request facility update but missing ' + 'address in data'
+        `Error processing Hodler UpdateRewards event for account ${account}:`,
+        error.stack
       )
     }
   }

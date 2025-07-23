@@ -201,7 +201,7 @@ async function createResilientProviders(
       } catch (error) {
         this.logger.error(
           `Failed to create ResilientWebsocketProvider for ${url}:`,
-          error
+          error.stack
         )
         return null
       }
