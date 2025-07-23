@@ -75,6 +75,7 @@ job "facilitator-controller-live" {
 
       template {
         data = <<-EOH
+        VERSION="[[ .commit_sha ]]"
         RELAY_REWARDS_PROCESS_ID="{{ key "smart-contracts/live/relay-rewards-address" }}"
         FACILITY_CONTRACT_ADDRESS="{{ key "facilitator/sepolia/live/address" }}"
         {{- range service "validator-live-mongo" }}

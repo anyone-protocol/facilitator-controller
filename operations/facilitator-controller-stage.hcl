@@ -83,6 +83,7 @@ job "facilitator-controller-stage" {
 
       template {
         data = <<-EOH
+        VERSION="[[ .commit_sha ]]"
         RELAY_REWARDS_PROCESS_ID="{{ key "smart-contracts/stage/relay-rewards-address" }}"
         STAKING_REWARDS_PROCESS_ID="{{ key "smart-contracts/stage/staking-rewards-address" }}"
         FACILITY_CONTRACT_ADDRESS="{{ key "facilitator/sepolia/stage/address" }}"
