@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { ethers } from 'ethers'
-import { HttpService } from '@nestjs/axios'
 
 import { createResilientProviders } from '../util/resilient-websocket-provider'
 
@@ -36,10 +35,7 @@ export class EvmProviderService
     (provider: ethers.WebSocketProvider) => void
   )[] = []
 
-  constructor(
-    config: ConfigService<typeof DefaultEvmProviderServiceConfig>,
-    private readonly httpService: HttpService
-  ) {
+  constructor(config: ConfigService<typeof DefaultEvmProviderServiceConfig>) {
     this.config.EVM_NETWORK = config.get<string>('EVM_NETWORK', { infer: true })
     if (!this.config.EVM_NETWORK) {
       throw new Error('EVM_NETWORK is not set!')
@@ -140,32 +136,14 @@ export class EvmProviderService
     providerName: string,
     providerWssUrl: string
   ) {
-    // const parts = providerWssUrl.split('/')
-    // const domain = parts[2]
-    // const version = parts[parts.length - 2]
-    // const apiKey = parts[parts.length - 1]
     this.logger.log(`Checking credits for ${providerName} WebSocket provider`)
     try {
       const provider = new ethers.WebSocketProvider(providerWssUrl)
       const blockNumber = await provider.getBlockNumber()
       this.logger.log(
-        `Successfully connected to ${providerName} WebSocket provider. Block number: ${blockNumber}`
+        `Successfully connected to ${providerName} WebSocket provider. ` +
+          `Block number: ${blockNumber}`
       )
-      // const result = await this.httpService.axiosRef.post(
-      //   `https://${domain}/${version}/${apiKey}`,
-      //   {
-      //     "jsonrpc": "2.0",
-      //     "method": "eth_getLogs",
-      //     "id": 1,
-      //     "params": [{
-      //       "address": "0x853b73e080293ce696653ca466ff2c3aad92992f",
-      //       "topics": [ "0x59bd3ee6f8d8e540ad4a8de7c43919e3a55c9bb9185661976b332ab2a3eafce8" ]
-      //     }]
-      //   },
-      //   // { "jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1 },
-      //   { headers: { 'Content-Type': 'application/json' } }
-      // )
-      // this.logger.log(`Credits check result: ${JSON.stringify(result.data)}`)
     } catch (error) {
       this.logger.error(
         `Failed to check credits for ${providerName} WebSocket provider:`,
