@@ -487,17 +487,22 @@ export class EventsService
         )
 
         if (this.hodlerContract) {
+          this.logger.log(
+            `Removing previous Hodler contract event listeners...`
+          )
           this.hodlerContract.off(HODLER_EVENTS.UpdateRewards)
         }
-
+        this.logger.log(`Creating Hodler contract instance...`)
         this.hodlerContract = new ethers.Contract(
           this.hodlerContractAddress,
           hodlerABI,
           this.provider
         )
+        this.logger.log(`Connecting Hodler contract to operator wallet...`)
         this.hodlerSignerContract = this.hodlerContract.connect(
           this.hodlerOperator
         )
+        this.logger.log(`Attaching hodler UpdateRewards event listener...`)
         this.hodlerContract.on(
           HODLER_EVENTS.UpdateRewards,
           this.onHodlerUpdateRewards.bind(this)
