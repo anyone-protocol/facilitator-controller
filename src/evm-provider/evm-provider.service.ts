@@ -148,7 +148,15 @@ export class EvmProviderService
     try {
       const result = await this.httpService.axiosRef.post(
         `https://${domain}/${version}/${apiKey}`,
-        { "jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1 },
+        {
+          "jsonrpc": "2.0",
+          "method": "eth_getLogs",
+          "params": [{
+            "address": [ "0x853b73e080293ce696653ca466ff2c3aad92992f" ],
+            "topics": [ "0x59bd3ee6f8d8e540ad4a8de7c43919e3a55c9bb9185661976b332ab2a3eafce8" ]
+          }]
+        },
+        // { "jsonrpc": "2.0", "method": "eth_chainId", "params": [], "id": 1 },
         { headers: { 'Content-Type': 'application/json' } }
       )
       this.logger.log(`Credits check result: ${JSON.stringify(result.data)}`)
