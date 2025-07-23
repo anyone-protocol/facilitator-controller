@@ -27,6 +27,7 @@ async function bootstrap() {
   })
 
   const port = process.env.PORT || 3000
+  logz.info(`Starting facilitator-controller version: ${process.env.VERSION}`)
   logz.info(`Listening on ${port}`)
 
   await app.listen(port)
