@@ -53,7 +53,7 @@ class ResilientWebsocketProvider {
   }
 
   async connect(): Promise<WebSocketProvider | null> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const closeConnection = () => {
         this.logger.log(`Closing connection...`)
         this.cleanupConnection()
@@ -128,6 +128,15 @@ class ResilientWebsocketProvider {
             this.logger.error(
               `Rate limit exceeded for ${this.name}. Retrying connection...`
             )
+
+            if (!this.resolved) {
+              reject(
+                new Error(
+                  `Rate limit exceeded on initial connection for ${this.name}`
+                )
+              )
+            }
+
             closeConnection()
           }
         })
