@@ -73,6 +73,8 @@ job "facilitator-controller-live" {
         env         = true
       }
 
+      consul {}
+
       template {
         data = <<-EOH
         VERSION="[[ .commit_sha ]]"
