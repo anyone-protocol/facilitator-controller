@@ -28,6 +28,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     removeOnFail: EventsDiscoveryService.removeOnFail
   }
 
+  private readonly NOMAD_ALLOC_INDEX: string
   private isLive?: string
   private doClean?: string
   private doDbNuke?: string
@@ -52,6 +53,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       DO_CLEAN: string
       DO_DB_NUKE: string
       USE_FACILITY: string
+      NOMAD_ALLOC_INDEX: string
     }>,
     private readonly evmProviderService: EvmProviderService,
     private readonly eventsService: EventsService,
@@ -60,7 +62,8 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     @InjectFlowProducer('discover-facilitator-events-flow')
     public discoverFacilitatorEventsFlow: FlowProducer,
     @InjectModel(EventsDiscoveryServiceState.name)
-    private readonly eventsDiscoveryServiceStateModel: Model<EventsDiscoveryServiceState>,
+    private readonly eventsDiscoveryServiceStateModel:
+      Model<EventsDiscoveryServiceState>,
     @InjectModel(AllocationUpdatedEvent.name)
     private readonly allocationUpdatedEventModel: Model<AllocationUpdatedEvent>,
     @InjectModel(RequestingUpdateEvent.name)
@@ -70,6 +73,10 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
     this.doDbNuke = this.config.get<string>('DO_DB_NUKE', { infer: true })
     this.useFacility = this.config.get<string>('USE_FACILITY', { infer: true })
+    this.NOMAD_ALLOC_INDEX = this.config.get<string>(
+      'NOMAD_ALLOC_INDEX',
+      { infer: true }
+    )
 
     if (this.useFacility == 'true') {
       this.facilitatorAddress = this.config.get<string>(
@@ -95,11 +102,18 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
           `FACILITATOR: ${this.facilitatorAddress})`
       )
     } else {
-      this.logger.log(`Skipped initialization of events service [USE_FACILITY=false]`)
+      this.logger.log(
+        `Skipped initialization of events service [USE_FACILITY=false]`
+      )
     }
   }
 
   async onApplicationBootstrap() {
+    this.logger.log(
+      `Bootstrapping EventsDiscoveryService with ` +
+        `NOMAD_ALLOC_INDEX [${this.NOMAD_ALLOC_INDEX}]`
+    )
+
     if (this.doClean === 'true') {
       this.logger.log(
         'Cleaning up discover facilitator events queue because DO_CLEAN is true'
@@ -142,7 +156,9 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         this.provider
       )
 
-      this.logger.log(`Bootstraped Facilitator contract: ${this.facilitatorContract}`)
+      this.logger.log(
+        `Bootstraped Facilitator contract: ${this.facilitatorContract}`
+      )
     } else {
       this.logger.log(
         `Skipped bootstrap of events service [USE_FACILITY=false]`
@@ -154,7 +170,8 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       await this.enqueueDiscoverFacilitatorEventsFlow({ delayJob: 0 })
     } else {
       this.logger.log(
-        'Skipped queuing immediate discovery of facilitator events [USE_FACILITY=false]'
+        'Skipped queuing immediate discovery of facilitator ' +
+          'events [USE_FACILITY=false]'
       )
     }
   }
@@ -321,7 +338,10 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     )
 
     for (const { requestingAddress, transactionHash } of unmatchedToQueue) {
-      await this.eventsService.enqueueUpdateAllocation(requestingAddress, transactionHash)
+      await this.eventsService.enqueueUpdateAllocation(
+        requestingAddress,
+        transactionHash
+      )
     }
 
     const duplicateAddresses = unmatchedEvents.length - unmatchedToQueue.length
@@ -352,10 +372,13 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     )
 
     let numJobsInQueue = 0
-    numJobsInQueue += await this.discoverFacilitatorEventsQueue.getWaitingCount()
-    numJobsInQueue += await this.discoverFacilitatorEventsQueue.getDelayedCount()
+    numJobsInQueue += await this.discoverFacilitatorEventsQueue
+      .getWaitingCount()
+    numJobsInQueue += await this.discoverFacilitatorEventsQueue
+      .getDelayedCount()
     if (!opts.skipActiveCheck) {
-      numJobsInQueue += await this.discoverFacilitatorEventsQueue.getActiveCount()
+      numJobsInQueue += await this.discoverFacilitatorEventsQueue
+        .getActiveCount()
     }
     if (numJobsInQueue > 0) {
       this.logger.warn(
@@ -382,19 +405,22 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         `delay: ${opts.delayJob}ms`
     )
     await this.discoverFacilitatorEventsFlow.add({
-      name: DiscoverFacilitatorEventsQueue.JOB_MATCH_DISCOVERED_FACILITATOR_EVENTS,
+      name: DiscoverFacilitatorEventsQueue
+        .JOB_MATCH_DISCOVERED_FACILITATOR_EVENTS,
       queueName: 'discover-facilitator-events-queue',
       opts: EventsDiscoveryService.jobOpts,
       data: { currentBlock },
       children: [
         {
-          name: DiscoverFacilitatorEventsQueue.JOB_DISCOVER_ALLOCATION_UPDATED_EVENTS,
+          name: DiscoverFacilitatorEventsQueue
+            .JOB_DISCOVER_ALLOCATION_UPDATED_EVENTS,
           queueName: 'discover-facilitator-events-queue',
           opts: EventsDiscoveryService.jobOpts,
           data: { currentBlock },
           children: [
             {
-              name: DiscoverFacilitatorEventsQueue.JOB_DISCOVER_REQUESTING_UPDATE_EVENTS,
+              name: DiscoverFacilitatorEventsQueue
+                .JOB_DISCOVER_REQUESTING_UPDATE_EVENTS,
               queueName: 'discover-facilitator-events-queue',
               opts: { delay: opts.delayJob, ...EventsDiscoveryService.jobOpts },
               data: { currentBlock }
