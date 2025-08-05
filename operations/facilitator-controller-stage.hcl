@@ -81,6 +81,8 @@ job "facilitator-controller-stage" {
         env         = true
       }
 
+      consul {}
+
       template {
         data = <<-EOH
         VERSION="[[ .commit_sha ]]"
