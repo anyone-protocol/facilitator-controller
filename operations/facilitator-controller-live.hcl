@@ -32,7 +32,6 @@ job "facilitator-controller-live" {
       driver = "docker"
       config {
         image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
-        force_pull = true
       }
 
       env {
@@ -53,12 +52,8 @@ job "facilitator-controller-live" {
         role = "any1-nomad-workloads-controller"
       }
 
-      identity {
-        name = "vault_default"
-        aud  = ["any1-infra"]
-        ttl  = "1h"
-      }
-
+      consul {}
+      
       template {
         data = <<-EOH
         {{ $allocIndex := env "NOMAD_ALLOC_INDEX" }}
@@ -72,8 +67,6 @@ job "facilitator-controller-live" {
         destination = "secrets/file.env"
         env         = true
       }
-
-      consul {}
 
       template {
         data = <<-EOH

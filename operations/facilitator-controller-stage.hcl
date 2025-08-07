@@ -54,11 +54,7 @@ job "facilitator-controller-stage" {
         role = "any1-nomad-workloads-controller"
       }
 
-      identity {
-        name = "vault_default"
-        aud  = ["any1-infra"]
-        ttl  = "1h"
-      }
+      consul {}
 
       template {
         data = <<-EOH
@@ -80,8 +76,6 @@ job "facilitator-controller-stage" {
         destination = "secrets/keys.env"
         env         = true
       }
-
-      consul {}
 
       template {
         data = <<-EOH
