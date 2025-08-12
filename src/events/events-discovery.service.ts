@@ -84,7 +84,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       { infer: true }
     )
 
-    if (this.useFacility == 'true') {
+    if (this.useFacility === 'true') {
       this.facilitatorAddress = this.config.get<string>(
         'FACILITY_CONTRACT_ADDRESS',
         { infer: true }
@@ -120,6 +120,34 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         `NOMAD_ALLOC_INDEX [${this.NOMAD_ALLOC_INDEX}]`
     )
 
+    if (this.useFacility == 'true') {
+      this.logger.log('Bootstrapping with Facilitator')
+      this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
+        (provider => {
+          this.provider = provider
+          this.facilitatorContract = new ethers.Contract(
+            this.facilitatorAddress,
+            facilitatorABI,
+            this.provider
+          )
+        }).bind(this)
+      )
+      this.logger.log(`Bootstraped Facilitator provider: ${this.provider}`)
+      this.facilitatorContract = new ethers.Contract(
+        this.facilitatorAddress,
+        facilitatorABI,
+        this.provider
+      )
+
+      this.logger.log(
+        `Bootstraped Facilitator contract: ${this.facilitatorContract}`
+      )
+    } else {
+      this.logger.log(
+        `Skipped bootstrap of events service [USE_FACILITY=false]`
+      )
+    }
+
     if (this.clusterService.isTheOne()) {
       this.logger.log(
         `I am the leader, checking queue cleanup, immediate queue start`
@@ -147,7 +175,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         await this.eventsDiscoveryServiceStateModel.create(this.state)
       }
 
-      if (this.useFacility == 'true') {
+      if (this.useFacility === 'true') {
         this.logger.log('Queueing immediate discovery of facilitator events')
         await this.enqueueDiscoverFacilitatorEventsFlow({ delayJob: 0 })
       } else {
@@ -161,34 +189,6 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         `Not the leader, skipping queue cleanup check, ` +
           `skipping db cleanup check, &` +
           `skipping queueing immediate tasks`
-      )
-    }
-
-    if (this.useFacility == 'true') {
-      this.logger.log('Bootstrapping with Facilitator')
-      this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
-        (provider => {
-          this.provider = provider
-          this.facilitatorContract = new ethers.Contract(
-            this.facilitatorAddress,
-            facilitatorABI,
-            this.provider
-          )
-        }).bind(this)
-      )
-      this.logger.log(`Bootstraped Facilitator provider: ${this.provider}`)
-      this.facilitatorContract = new ethers.Contract(
-        this.facilitatorAddress,
-        facilitatorABI,
-        this.provider
-      )
-
-      this.logger.log(
-        `Bootstraped Facilitator contract: ${this.facilitatorContract}`
-      )
-    } else {
-      this.logger.log(
-        `Skipped bootstrap of events service [USE_FACILITY=false]`
       )
     }
   }

@@ -121,6 +121,28 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
         `NOMAD_ALLOC_INDEX [${this.NOMAD_ALLOC_INDEX}]`
     )
 
+    if (this.useHodler == 'true') {
+      this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
+        (provider => {
+          this.provider = provider
+          this.hodlerContract = new ethers.Contract(
+            this.hodlerAddress,
+            hodlerABI,
+            this.provider
+          )
+        }).bind(this)
+      )
+      this.hodlerContract = new ethers.Contract(
+        this.hodlerAddress,
+        hodlerABI,
+        this.provider
+      )
+    } else {
+      this.logger.log(
+        'Skipping bootstrap of rewards discovery service (USE_HODLER: false)'
+      )
+    }
+
     if (this.clusterService.isTheOne()) {
       this.logger.log(
         `I am the leader, checking queue cleanup & immediate queue start`
@@ -149,42 +171,20 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
       } else {
         await this.rewardsDiscoveryServiceStateModel.create(this.state)
       }
+
+      if (this.useHodler == 'true') {
+        this.logger.log('Queueing immediate discovery of hodler events')
+        await this.enqueueDiscoverHodlerEventsFlow({ delayJob: 0 })
+      } else {
+        this.logger.log(
+          'Skipping immediate discovery of hodler events (USE_HODLER: false)'
+        )
+      }
     } else {
       this.logger.log(
         `Not the leader, skipping queue cleanup check, ` +
           `skipping db cleanup check, &` +
           `skipping queueing immediate tasks`
-      )
-    }
-
-    if (this.useHodler == 'true') {
-      this.logger.log('Queueing immediate discovery of hodler events')
-      await this.enqueueDiscoverHodlerEventsFlow({ delayJob: 0 })
-    } else {
-      this.logger.log(
-        'Skipping immediate discovery of hodler events (USE_HODLER: false)'
-      )
-    }
-
-    if (this.useHodler == 'true') {
-      this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
-        (provider => {
-          this.provider = provider
-          this.hodlerContract = new ethers.Contract(
-            this.hodlerAddress,
-            hodlerABI,
-            this.provider
-          )
-        }).bind(this)
-      )
-      this.hodlerContract = new ethers.Contract(
-        this.hodlerAddress,
-        hodlerABI,
-        this.provider
-      )
-    } else {
-      this.logger.log(
-        'Skipping bootstrap of rewards discovery service (USE_HODLER: false)'
       )
     }
   }
