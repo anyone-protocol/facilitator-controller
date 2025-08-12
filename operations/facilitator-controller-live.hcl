@@ -46,9 +46,9 @@ job "facilitator-controller-live" {
         USE_FACILITY="true"
         IS_LOCAL_LEADER="true"
         CPU_COUNT="1"
-        # CONSUL_HOST="${NOMAD_IP_http}"
-        # CONSUL_PORT="8500"
-        # CONSUL_SERVICE_NAME="facilitator-controller-live"
+        CONSUL_HOST="${NOMAD_IP_http}"
+        CONSUL_PORT="8500"
+        CONSUL_SERVICE_NAME="facilitator-controller-live"
       }
 
       vault {
