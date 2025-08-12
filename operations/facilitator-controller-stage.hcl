@@ -21,7 +21,6 @@ job "facilitator-controller-stage" {
     }
 
     network {
-      mode = "bridge"
       port "http" {
         host_network = "wireguard"
       }
@@ -32,6 +31,7 @@ job "facilitator-controller-stage" {
       config {
         image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
         force_pull = true
+        network_mode = "host"
       }
 
       env {

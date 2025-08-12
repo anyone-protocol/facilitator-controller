@@ -21,7 +21,6 @@ job "facilitator-controller-live" {
     }
 
     network {
-      mode = "bridge"
       port "http" {
         host_network = "wireguard"
       }
@@ -30,6 +29,7 @@ job "facilitator-controller-live" {
     task "facilitator-controller-live-service" {
       driver = "docker"
       config {
+        network_mode = "host"
         image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
       }
 
