@@ -6,15 +6,20 @@ import { FlowProducer, Queue } from 'bullmq'
 import { ethers } from 'ethers'
 import { sortBy, uniqBy } from 'lodash'
 import { Model, Types as MongooseTypes } from 'mongoose'
+import BigNumber from 'bignumber.js'
 
 import { EventsService } from './events.service'
 import { EvmProviderService } from '../evm-provider/evm-provider.service'
-import { RewardsDiscoveryServiceState } from './schemas/rewards-discovery-service-state'
+import {
+  RewardsDiscoveryServiceState
+} from './schemas/rewards-discovery-service-state'
 import { RewardedEvent } from './schemas/rewarded-event'
 import { UpdateRewardsEvent } from './schemas/update-rewards-event'
 import { HODLER_EVENTS, hodlerABI } from './abi/hodler'
-import { DiscoverHodlerEventsQueue } from './processors/discover-hodler-events-queue'
-import BigNumber from 'bignumber.js'
+import {
+  DiscoverHodlerEventsQueue
+} from './processors/discover-hodler-events-queue'
+import { ClusterService } from '../cluster/cluster.service'
 
 @Injectable()
 export class RewardsDiscoveryService implements OnApplicationBootstrap {
@@ -29,6 +34,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     removeOnFail: RewardsDiscoveryService.removeOnFail
   }
 
+  private readonly NOMAD_ALLOC_INDEX: string
   private isLive?: string
   private doClean?: string
   private doDbNuke?: string
@@ -53,6 +59,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
       DO_CLEAN: string
       DO_DB_NUKE: string
       USE_HODLER: string
+      NOMAD_ALLOC_INDEX: string
     }>,
     private readonly evmProviderService: EvmProviderService,
     private readonly eventsService: EventsService,
@@ -61,16 +68,23 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     @InjectFlowProducer('discover-hodler-events-flow')
     public discoverHodlerEventsFlow: FlowProducer,
     @InjectModel(RewardsDiscoveryServiceState.name)
-    private readonly rewardsDiscoveryServiceStateModel: Model<RewardsDiscoveryServiceState>,
+    private readonly rewardsDiscoveryServiceStateModel:
+      Model<RewardsDiscoveryServiceState>,
     @InjectModel(RewardedEvent.name)
     private readonly rewardedEventModel: Model<RewardedEvent>,
     @InjectModel(UpdateRewardsEvent.name)
-    private readonly updateRewardsEventModel: Model<UpdateRewardsEvent>
+    private readonly updateRewardsEventModel: Model<UpdateRewardsEvent>,
+    private readonly clusterService: ClusterService
   ) {
     this.isLive = this.config.get<string>('IS_LIVE', { infer: true })
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
     this.doDbNuke = this.config.get<string>('DO_DB_NUKE', { infer: true })
     this.useHodler = this.config.get<string>('USE_HODLER', { infer: true })
+    this.NOMAD_ALLOC_INDEX = this.config.get<string>(
+      'NOMAD_ALLOC_INDEX',
+      { infer: true }
+    )
+
     if (this.useHodler == 'true') {
       this.hodlerAddress = this.config.get<string>(
         'HODLER_CONTRACT_ADDRESS',
@@ -102,30 +116,54 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
-    if (this.doClean === 'true') {
-      this.logger.log(
-        'Cleaning up discover hodler events queue because DO_CLEAN is true'
-      )
-      await this.discoverHodlerEventsQueue.obliterate({ force: true })
-    }
+    this.logger.log(
+      `Bootstrapping EventsDiscoveryService with ` +
+        `NOMAD_ALLOC_INDEX [${this.NOMAD_ALLOC_INDEX}]`
+    )
 
-    if (this.doDbNuke === 'true') {
+    if (this.clusterService.isTheOne()) {
       this.logger.log(
-        'Nuking DB of update rewards events because DO_DB_NUKE is true'
+        `I am the leader, checking queue cleanup & immediate queue start`
       )
-      await this.updateRewardsEventModel.deleteMany({})
-      this.logger.log(
-        'Nuked UpdateRewardsEvent collection, not nuking rewarded events'
-      )
-    }
+      if (this.doClean === 'true') {
+        this.logger.log(
+          'Cleaning up discover hodler events queue because DO_CLEAN is true'
+        )
+        await this.discoverHodlerEventsQueue.obliterate({ force: true })
+      }
 
-    const rewardsDiscoveryServiceState =
-      await this.rewardsDiscoveryServiceStateModel.findOne()
+      if (this.doDbNuke === 'true') {
+        this.logger.log(
+          'Nuking DB of update rewards events because DO_DB_NUKE is true'
+        )
+        await this.updateRewardsEventModel.deleteMany({})
+        this.logger.log(
+          'Nuked UpdateRewardsEvent collection, not nuking rewarded events'
+        )
+      }
 
-    if (rewardsDiscoveryServiceState) {
-      this.state = rewardsDiscoveryServiceState.toObject()
+      const rewardsDiscoveryServiceState =
+        await this.rewardsDiscoveryServiceStateModel.findOne()
+      if (rewardsDiscoveryServiceState) {
+        this.state = rewardsDiscoveryServiceState.toObject()
+      } else {
+        await this.rewardsDiscoveryServiceStateModel.create(this.state)
+      }
     } else {
-      await this.rewardsDiscoveryServiceStateModel.create(this.state)
+      this.logger.log(
+        `Not the leader, skipping queue cleanup check, ` +
+          `skipping db cleanup check, &` +
+          `skipping queueing immediate tasks`
+      )
+    }
+
+    if (this.useHodler == 'true') {
+      this.logger.log('Queueing immediate discovery of hodler events')
+      await this.enqueueDiscoverHodlerEventsFlow({ delayJob: 0 })
+    } else {
+      this.logger.log(
+        'Skipping immediate discovery of hodler events (USE_HODLER: false)'
+      )
     }
 
     if (this.useHodler == 'true') {
@@ -147,15 +185,6 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     } else {
       this.logger.log(
         'Skipping bootstrap of rewards discovery service (USE_HODLER: false)'
-      )
-    }
-
-    if (this.useHodler == 'true') {
-      this.logger.log('Queueing immediate discovery of hodler events')
-      await this.enqueueDiscoverHodlerEventsFlow({ delayJob: 0 })
-    } else {
-      this.logger.log(
-        'Skipping immediate discovery of hodler events (USE_HODLER: false)'
       )
     }
   }

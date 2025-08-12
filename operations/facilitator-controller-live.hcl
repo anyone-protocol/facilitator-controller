@@ -40,23 +40,21 @@ job "facilitator-controller-live" {
         VERSION="[[ .commit_sha ]]"
         REDIS_MODE="sentinel"
         REDIS_MASTER_NAME="facilitator-controller-live-redis-master"
-        CPU_COUNT="1"
         DO_CLEAN="true"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
         IS_LOCAL_LEADER="true"
         CU_URL="https://cu.anyone.permaweb.services"
         USE_HODLER="false"
         USE_FACILITY="true"
+        IS_LOCAL_LEADER="true"
+        CPU_COUNT="1"
+        # CONSUL_HOST="${NOMAD_IP_http}"
+        # CONSUL_PORT="8500"
+        # CONSUL_SERVICE_NAME="facilitator-controller-live"
       }
 
       vault {
         role = "any1-nomad-workloads-controller"
-      }
-
-      identity {
-        name = "vault_default"
-        aud  = ["any1-infra"]
-        ttl  = "1h"
       }
 
       template {

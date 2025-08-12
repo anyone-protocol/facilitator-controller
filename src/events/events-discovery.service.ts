@@ -11,9 +11,14 @@ import { FACILITATOR_EVENTS, facilitatorABI } from './abi/facilitator'
 import { RequestingUpdateEvent } from './schemas/requesting-update-event'
 import { AllocationUpdatedEvent } from './schemas/allocation-updated-event'
 import { EventsService } from './events.service'
-import { DiscoverFacilitatorEventsQueue } from './processors/discover-facilitator-events-queue'
-import { EventsDiscoveryServiceState } from './schemas/events-discovery-service-state'
+import {
+  DiscoverFacilitatorEventsQueue
+} from './processors/discover-facilitator-events-queue'
+import {
+  EventsDiscoveryServiceState
+} from './schemas/events-discovery-service-state'
 import { EvmProviderService } from '../evm-provider/evm-provider.service'
+import { ClusterService } from '../cluster/cluster.service'
 
 @Injectable()
 export class EventsDiscoveryService implements OnApplicationBootstrap {
@@ -67,7 +72,8 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     @InjectModel(AllocationUpdatedEvent.name)
     private readonly allocationUpdatedEventModel: Model<AllocationUpdatedEvent>,
     @InjectModel(RequestingUpdateEvent.name)
-    private readonly requestingUpdateEventModel: Model<RequestingUpdateEvent>
+    private readonly requestingUpdateEventModel: Model<RequestingUpdateEvent>,
+    private readonly clusterService: ClusterService
   ) {
     this.isLive = this.config.get<string>('IS_LIVE', { infer: true })
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
@@ -114,27 +120,48 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         `NOMAD_ALLOC_INDEX [${this.NOMAD_ALLOC_INDEX}]`
     )
 
-    if (this.doClean === 'true') {
+    if (this.clusterService.isTheOne()) {
       this.logger.log(
-        'Cleaning up discover facilitator events queue because DO_CLEAN is true'
+        `I am the leader, checking queue cleanup, immediate queue start`
       )
-      await this.discoverFacilitatorEventsQueue.obliterate({ force: true })
-    }
+      if (this.doClean === 'true') {
+        this.logger.log(
+          'Cleaning up discover facilitator events queue because DO_CLEAN is true'
+        )
+        await this.discoverFacilitatorEventsQueue.obliterate({ force: true })
+      }
 
-    if (this.doDbNuke === 'true') {
-      this.logger.log(
-        'Nuking DB of requesting update events because DO_DB_NUKE is true'
-      )
-      await this.requestingUpdateEventModel.deleteMany({})
-      this.logger.log('Nuked RequestingUpdateEvent collection')
-    }
+      if (this.doDbNuke === 'true') {
+        this.logger.log(
+          'Nuking DB of requesting update events because DO_DB_NUKE is true'
+        )
+        await this.requestingUpdateEventModel.deleteMany({})
+        this.logger.log('Nuked RequestingUpdateEvent collection')
+      }
 
-    const eventsDiscoveryServiceState =
-      await this.eventsDiscoveryServiceStateModel.findOne()
-    if (eventsDiscoveryServiceState) {
-      this.state = eventsDiscoveryServiceState.toObject()
+      const eventsDiscoveryServiceState =
+        await this.eventsDiscoveryServiceStateModel.findOne()
+      if (eventsDiscoveryServiceState) {
+        this.state = eventsDiscoveryServiceState.toObject()
+      } else {
+        await this.eventsDiscoveryServiceStateModel.create(this.state)
+      }
+
+      if (this.useFacility == 'true') {
+        this.logger.log('Queueing immediate discovery of facilitator events')
+        await this.enqueueDiscoverFacilitatorEventsFlow({ delayJob: 0 })
+      } else {
+        this.logger.log(
+          'Skipped queuing immediate discovery of facilitator ' +
+            'events [USE_FACILITY=false]'
+        )
+      }
     } else {
-      await this.eventsDiscoveryServiceStateModel.create(this.state)
+      this.logger.log(
+        `Not the leader, skipping queue cleanup check, ` +
+          `skipping db cleanup check, &` +
+          `skipping queueing immediate tasks`
+      )
     }
 
     if (this.useFacility == 'true') {
@@ -162,16 +189,6 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     } else {
       this.logger.log(
         `Skipped bootstrap of events service [USE_FACILITY=false]`
-      )
-    }
-
-    if (this.useFacility == 'true') {
-      this.logger.log('Queueing immediate discovery of facilitator events')
-      await this.enqueueDiscoverFacilitatorEventsFlow({ delayJob: 0 })
-    } else {
-      this.logger.log(
-        'Skipped queuing immediate discovery of facilitator ' +
-          'events [USE_FACILITY=false]'
       )
     }
   }

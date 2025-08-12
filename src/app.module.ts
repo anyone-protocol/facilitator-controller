@@ -9,6 +9,7 @@ import { AppService } from './app.service'
 import { EventsModule } from './events/events.module'
 import { EvmProviderModule } from './evm-provider/evm-provider.module'
 import { RelayRewardsModule } from './relay-rewards/relay-rewards.module'
+import { ClusterModule } from './cluster/cluster.module'
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { RelayRewardsModule } from './relay-rewards/relay-rewards.module'
         return { connection }
       }
     }),
+    ClusterModule,
     EvmProviderModule,
     RelayRewardsModule,
     EventsModule

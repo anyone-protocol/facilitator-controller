@@ -20,16 +20,18 @@ import {
 } from './schemas/events-discovery-service-state'
 import { EvmProviderModule } from '../evm-provider/evm-provider.module'
 import { RelayRewardsModule } from '../relay-rewards/relay-rewards.module'
-import { StakingRewardsModule } from 'src/staking-rewards/staking-rewards.module'
+import { StakingRewardsModule } from '../staking-rewards/staking-rewards.module'
 import { HodlerUpdatesQueue } from './processors/hodler-updates-queue'
 import { DiscoverHodlerEventsQueue } from './processors/discover-hodler-events-queue'
 import { RewardsDiscoveryServiceState, RewardsDiscoveryServiceStateSchema } from './schemas/rewards-discovery-service-state'
 import { UpdateRewardsEvent, UpdateRewardsEventSchema } from './schemas/update-rewards-event'
 import { RewardedEvent, RewardedEventSchema } from './schemas/rewarded-event'
 import { RewardsDiscoveryService } from './rewards-discovery.service'
+import { ClusterModule } from '../cluster/cluster.module'
 
 @Module({
   imports: [
+    ClusterModule,
     EvmProviderModule,
     RelayRewardsModule,
     StakingRewardsModule,

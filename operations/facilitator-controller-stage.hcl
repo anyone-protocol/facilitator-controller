@@ -40,7 +40,6 @@ job "facilitator-controller-stage" {
         VERSION="[[ .commit_sha ]]"
         REDIS_MODE="sentinel"
         REDIS_MASTER_NAME="facilitator-controller-stage-redis-master"
-        CPU_COUNT="1"
         DO_CLEAN="true"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         IS_LOCAL_LEADER="true"
@@ -48,16 +47,15 @@ job "facilitator-controller-stage" {
         USE_HODLER="true"
         USE_FACILITY="false"
         HODLER_CONTRACT_DEPLOYED_BLOCK="8190110"
+        IS_LOCAL_LEADER="true"
+        CPU_COUNT="1"
+        # CONSUL_HOST="${NOMAD_IP_http}"
+        # CONSUL_PORT="8500"
+        # CONSUL_SERVICE_NAME="facilitator-controller-stage"
       }
 
       vault {
         role = "any1-nomad-workloads-controller"
-      }
-
-      identity {
-        name = "vault_default"
-        aud  = ["any1-infra"]
-        ttl  = "1h"
       }
 
       template {
