@@ -41,7 +41,6 @@ job "facilitator-controller-live" {
         REDIS_MASTER_NAME="facilitator-controller-live-redis-master"
         DO_CLEAN="true"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
-        IS_LOCAL_LEADER="true"
         CU_URL="https://cu.anyone.permaweb.services"
         USE_HODLER="false"
         USE_FACILITY="true"

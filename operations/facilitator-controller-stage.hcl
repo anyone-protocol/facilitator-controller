@@ -42,7 +42,6 @@ job "facilitator-controller-stage" {
         REDIS_MASTER_NAME="facilitator-controller-stage-redis-master"
         DO_CLEAN="true"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
-        IS_LOCAL_LEADER="true"
         CU_URL="https://cu.anyone.permaweb.services"
         USE_HODLER="true"
         USE_FACILITY="false"
