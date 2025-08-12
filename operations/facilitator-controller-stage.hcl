@@ -58,6 +58,8 @@ job "facilitator-controller-stage" {
         role = "any1-nomad-workloads-controller"
       }
 
+      consul {}
+
       template {
         data = <<-EOH
         {{ $allocIndex := env "NOMAD_ALLOC_INDEX" }}
@@ -78,8 +80,6 @@ job "facilitator-controller-stage" {
         destination = "secrets/keys.env"
         env         = true
       }
-
-      consul {}
 
       template {
         data = <<-EOH
