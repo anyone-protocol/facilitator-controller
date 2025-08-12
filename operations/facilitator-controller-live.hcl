@@ -22,8 +22,7 @@ job "facilitator-controller-live" {
 
     network {
       mode = "bridge"
-      port "facilitator-controller-port" {
-        to = 3000
+      port "http" {
         host_network = "wireguard"
       }
     }
@@ -37,6 +36,7 @@ job "facilitator-controller-live" {
       env {
         IS_LIVE="true"
         VERSION="[[ .commit_sha ]]"
+        PORT="${NOMAD_PORT_http}"
         REDIS_MODE="sentinel"
         REDIS_MASTER_NAME="facilitator-controller-live-redis-master"
         DO_CLEAN="true"
@@ -107,7 +107,7 @@ job "facilitator-controller-live" {
 
       service {
         name = "facilitator-controller-live"
-        port = "facilitator-controller-port"
+        port = "http"
         tags = ["logging"]
 
         check {
