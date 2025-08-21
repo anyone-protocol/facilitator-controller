@@ -29,6 +29,5 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command: rebar3 as genesis_wasm shell
     ports:
       - "3000:3000"
