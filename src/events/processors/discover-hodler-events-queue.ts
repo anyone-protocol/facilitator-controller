@@ -2,8 +2,10 @@ import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { forwardRef, Inject, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
 
-import { EventsDiscoveryService } from '../events-discovery.service'
 import { RewardsDiscoveryService } from '../rewards-discovery.service'
+import {
+  EventDiscoveryQueryRangeDto
+} from '../dto/event-discovery-query-range.dto'
 
 @Processor('discover-hodler-events-queue')
 export class DiscoverHodlerEventsQueue extends WorkerHost {
@@ -29,10 +31,15 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
     switch (job.name) {
       case DiscoverHodlerEventsQueue.JOB_DISCOVER_UPDATE_REWARDS_EVENTS:
         try {
-          const lastHodlerBlock =
+          const lastSafeCompleteBlock =
             await this.rewardsDiscoveryService.getLastSafeCompleteBlockNumber()
-
-          return await this.rewardsDiscoveryService.discoverUpdateRewardsEvents(lastHodlerBlock)
+          this.logger.log(
+            `Using lastSafeCompleteBlock [${lastSafeCompleteBlock}]`
+          )
+          return await this.rewardsDiscoveryService.discoverUpdateRewardsEvents(
+            lastSafeCompleteBlock,
+            job.data.currentBlock
+          )
         } catch (error) {
           this.logger.error(
             `Exception during job ${job.name} [${job.id}]`,
@@ -44,11 +51,13 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
 
       case DiscoverHodlerEventsQueue.JOB_DISCOVER_REWARDED_EVENTS:
         try {
-          const lastHodlerBlock =
-            await this.rewardsDiscoveryService.getLastSafeCompleteBlockNumber()
+          const { from, to } = (await job.getChildrenValues<EventDiscoveryQueryRangeDto>())[
+            DiscoverHodlerEventsQueue.JOB_DISCOVER_UPDATE_REWARDS_EVENTS
+          ]
 
           return await this.rewardsDiscoveryService.discoverRewardedEvents(
-            lastHodlerBlock
+            from,
+            to
           )
         } catch (error) {
           this.logger.error(
@@ -61,9 +70,10 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
 
       case DiscoverHodlerEventsQueue.JOB_MATCH_DISCOVERED_HODLER_EVENTS:
         try {
-          await this.rewardsDiscoveryService.matchDiscoveredHodlerEvents(
-            job.data.currentBlock
-          )
+          const { to } = (await job.getChildrenValues<EventDiscoveryQueryRangeDto>())[
+            DiscoverHodlerEventsQueue.JOB_DISCOVER_UPDATE_REWARDS_EVENTS
+          ]
+          await this.rewardsDiscoveryService.matchDiscoveredHodlerEvents(to)
         } catch (error) {
           this.logger.error(
             `Exception during job ${job.name} [${job.id}]`,

@@ -211,7 +211,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       )
       toBlock = BigNumber(fromBlock)
         .plus(EventsDiscoveryService.MAX_BLOCK_QUERY_RANGE)
-        .toNumber() 
+        .toNumber()
     }
 
     this.logger.log(
@@ -275,7 +275,6 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   ) {
     const fromBlock = from
     const toBlock = to
-
     this.logger.log(
       `Discovering ${FACILITATOR_EVENTS.AllocationUpdated} events` +
         ` from block [${fromBlock.toString()}] to block [${toBlock.toString()}]`
@@ -285,7 +284,8 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       this.facilitatorContract.filters[FACILITATOR_EVENTS.AllocationUpdated]()
     const events = (await this.facilitatorContract.queryFilter(
       filter,
-      fromBlock
+      fromBlock,
+      toBlock
     )) as ethers.EventLog[]
 
     this.logger.log(
@@ -341,7 +341,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     }
 
     this.logger.log(
-      `Found ${unfulfilledRequestingUpdateEvents.length}` +
+      `Found [${unfulfilledRequestingUpdateEvents.length}]` +
         ` unfulfilled RequestingUpdate events`
     )
 
@@ -391,9 +391,9 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       unmatchedToQueue.at(0)?.blockNumber || BigNumber(to).toNumber()
 
     this.logger.log(
-      `Matched ${matchedCount} RequestingUpdate to AllocationUpdated events` +
-        ` and enqueued ${unmatchedToQueue.length}` +
-        ` UpdateAllocation jobs (${duplicateAddresses} duplicate addresses)`
+      `Matched [${matchedCount}] RequestingUpdate to AllocationUpdated events` +
+        ` and enqueued [${unmatchedToQueue.length}]` +
+        ` UpdateAllocation jobs ([${duplicateAddresses}] duplicate addresses)`
     )
 
     await this.setLastSafeCompleteBlockNumber(lastSafeCompleteBlock)

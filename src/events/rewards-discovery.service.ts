@@ -28,6 +28,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   private static readonly removeOnComplete = true
   private static readonly removeOnFail = 8
   public static readonly DEFAULT_DELAY = 1000 * 60 * 60 // 1 hour
+  public static readonly MAX_BLOCK_QUERY_RANGE = 5000
 
   public static jobOpts = {
     removeOnComplete: RewardsDiscoveryService.removeOnComplete,
@@ -39,7 +40,6 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   private doClean?: string
   private doDbNuke?: string
   private useHodler?: string
-
   private hodlerAddress?: string
 
   private provider: ethers.WebSocketProvider
@@ -189,24 +189,39 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     }
   }
 
-  public async discoverUpdateRewardsEvents(from?: ethers.BlockTag) {
+  public async discoverUpdateRewardsEvents(
+    from?: ethers.BlockTag,
+    to: ethers.BlockTag = 'latest'
+  ) {
     const fromBlock = from || this.hodlerContractDeployedBlock
+    let toBlock = to === 'latest' ? await this.provider.getBlockNumber() : to
+    const blockQueryRange = BigNumber(toBlock).minus(fromBlock)
+    if (blockQueryRange.gt(RewardsDiscoveryService.MAX_BLOCK_QUERY_RANGE)) {
+      this.logger.warn(
+        `Querying too many blocks (${blockQueryRange.toString()})` +
+          ` - limiting to ${RewardsDiscoveryService.MAX_BLOCK_QUERY_RANGE}`
+      )
+      toBlock = BigNumber(fromBlock)
+        .plus(RewardsDiscoveryService.MAX_BLOCK_QUERY_RANGE)
+        .toNumber()
+    }
 
     this.logger.log(
       `Discovering ${HODLER_EVENTS.UpdateRewards} events` +
-        ` from block ${fromBlock.toString()}`
+        ` from block [${fromBlock.toString()}] to block [${toBlock.toString()}]`
     )
 
     const filter =
       this.hodlerContract.filters[HODLER_EVENTS.UpdateRewards]()
     const events = (await this.hodlerContract.queryFilter(
       filter,
-      fromBlock
+      fromBlock,
+      toBlock
     )) as ethers.EventLog[]
 
     this.logger.log(
       `Found ${events.length} ${HODLER_EVENTS.UpdateRewards} events` +
-        ` since block ${fromBlock.toString()}`
+        ` between blocks [${fromBlock.toString()}] and [${toBlock.toString()}]`
     )
 
     let knownEvents = 0, newEvents = 0
@@ -240,37 +255,43 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     }
 
     this.logger.log(
-      `Stored ${newEvents} newly discovered` +
+      `Stored [${newEvents}] newly discovered` +
         ` ${HODLER_EVENTS.UpdateRewards} events` +
-        ` and skipped storing ${knownEvents} previously known` +
-        ` out of ${events.length} total`
+        ` and skipped storing [${knownEvents}] previously known` +
+        ` out of [${events.length}] total`
     )
+
+    return { from: fromBlock, to: toBlock }
   }
 
-  public async discoverRewardedEvents(from?: ethers.BlockTag) {
+  public async discoverRewardedEvents(
+    from: ethers.BlockTag,
+    to: ethers.BlockTag
+  ) {
     if (this.useHodler != 'true') {
       this.logger.log(
         'Skipping discovery of Rewarded events (USE_HODLER: false)'
       )
       return
     }
-    const fromBlock = from || this.hodlerContractDeployedBlock
-
+    const fromBlock = from
+    const toBlock = to
     this.logger.log(
       `Discovering ${HODLER_EVENTS.Rewarded} events` +
-        ` from block ${fromBlock.toString()}`
+        ` from block [${fromBlock.toString()}] to block [${toBlock.toString()}]`
     )
 
     const filter =
       this.hodlerContract.filters[HODLER_EVENTS.Rewarded]()
     const events = (await this.hodlerContract.queryFilter(
       filter,
-      fromBlock
+      fromBlock,
+      toBlock
     )) as ethers.EventLog[]
 
     this.logger.log(
       `Found ${events.length} ${HODLER_EVENTS.Rewarded} events` +
-        ` since block ${fromBlock.toString()}`
+        ` between blocks [${fromBlock.toString()}] and [${toBlock.toString()}]`
     )
 
     let knownEvents = 0, newEvents = 0
@@ -301,14 +322,14 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     }
 
     this.logger.log(
-      `Stored ${newEvents} newly discovered` +
+      `Stored [${newEvents}] newly discovered` +
         ` ${HODLER_EVENTS.Rewarded} events` +
-        ` and skipped storing ${knownEvents} previously known` +
-        ` out of ${events.length} total`
+        ` and skipped storing [${knownEvents}] previously known` +
+        ` out of [${events.length}] total`
     )
   }
 
-  public async matchDiscoveredHodlerEvents(currentBlock: number) {
+  public async matchDiscoveredHodlerEvents(to: ethers.BlockTag) {
     if (this.useHodler != 'true') {
       this.logger.log(
         'Matching UpdateRewards to Rewarded events (USE_HODLER: false)'
@@ -327,7 +348,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     }
 
     this.logger.log(
-      `Found ${unfulfilledUpdateRewardsEvents.length}` +
+      `Found [${unfulfilledUpdateRewardsEvents.length}]` +
         ` unfulfilled UpdateRewards events`
     )
 
@@ -373,12 +394,12 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
 
     const duplicateAddresses = unmatchedEvents.length - unmatchedToQueue.length
     const lastSafeCompleteBlock =
-      unmatchedToQueue.at(0)?.blockNumber || currentBlock
+      unmatchedToQueue.at(0)?.blockNumber || BigNumber(to).toNumber()
 
     this.logger.log(
-      `Matched ${matchedCount} UpdateRewards to Rewarded events` +
-        ` and enqueued ${unmatchedToQueue.length}` +
-        ` UpdateRewards flows. (${duplicateAddresses} duplicate addresses)`
+      `Matched [${matchedCount}] UpdateRewards to Rewarded events` +
+        ` and enqueued [${unmatchedToQueue.length}]` +
+        ` UpdateRewards flows. ([${duplicateAddresses}] duplicate addresses)`
     )
 
     await this.setLastSafeCompleteBlockNumber(lastSafeCompleteBlock)

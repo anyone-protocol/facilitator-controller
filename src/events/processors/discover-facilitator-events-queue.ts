@@ -1,10 +1,11 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { forwardRef, Inject, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
-import { ethers } from 'ethers'
 
 import { EventsDiscoveryService } from '../events-discovery.service'
-import { EventDiscoveryQueryRangeDto } from '../dto/event-discovery-query-range.dto'
+import {
+  EventDiscoveryQueryRangeDto
+} from '../dto/event-discovery-query-range.dto'
 
 @Processor('discover-facilitator-events-queue')
 export class DiscoverFacilitatorEventsQueue extends WorkerHost {
@@ -32,7 +33,9 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
         try {
           const lastSafeCompleteBlock =
             await this.eventsDiscoveryService.getLastSafeCompleteBlockNumber()
-          this.logger.log(`Using lastSafeCompleteBlock [${lastSafeCompleteBlock}]`)
+          this.logger.log(
+            `Using lastSafeCompleteBlock [${lastSafeCompleteBlock}]`
+          )
           return await this.eventsDiscoveryService.discoverRequestingUpdateEvents(
             lastSafeCompleteBlock,
             job.data.currentBlock
