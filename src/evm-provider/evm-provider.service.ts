@@ -55,18 +55,23 @@ export class EvmProviderService
   }
 
   onApplicationShutdown() {
-    const waitForWebsocketAndDestroy = (provider: ethers.WebSocketProvider) => {
-      setTimeout(() => {
-        if (provider.websocket.readyState) {
-          provider.destroy()
-        } else {
-          waitForWebsocketAndDestroy(provider)
-        }
-      }, DESTROY_WEBSOCKET_INTERVAL)
-    }
+    return new Promise<void>(resolve => {
+      const waitForWebsocketAndDestroy = (provider: ethers.WebSocketProvider) => {
+        setTimeout(() => {
+          if (provider && provider.websocket?.readyState) {
+            provider.destroy()
+            resolve()
+          } else if (provider) {
+            waitForWebsocketAndDestroy(provider)
+          } else {
+            resolve()
+          }
+        }, DESTROY_WEBSOCKET_INTERVAL)
+      }
 
-    waitForWebsocketAndDestroy(this.primaryWebSocketProvider)
-    waitForWebsocketAndDestroy(this.secondaryWebSocketProvider)
+      waitForWebsocketAndDestroy(this.primaryWebSocketProvider)
+      waitForWebsocketAndDestroy(this.secondaryWebSocketProvider)
+    })
   }
 
   async onApplicationBootstrap() {

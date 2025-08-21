@@ -1,8 +1,10 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
 import { forwardRef, Inject, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
+import { ethers } from 'ethers'
 
 import { EventsDiscoveryService } from '../events-discovery.service'
+import { EventDiscoveryQueryRangeDto } from '../dto/event-discovery-query-range.dto'
 
 @Processor('discover-facilitator-events-queue')
 export class DiscoverFacilitatorEventsQueue extends WorkerHost {
@@ -30,9 +32,10 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
         try {
           const lastSafeCompleteBlock =
             await this.eventsDiscoveryService.getLastSafeCompleteBlockNumber()
-
+          this.logger.log(`Using lastSafeCompleteBlock [${lastSafeCompleteBlock}]`)
           return await this.eventsDiscoveryService.discoverRequestingUpdateEvents(
-            lastSafeCompleteBlock
+            lastSafeCompleteBlock,
+            job.data.currentBlock
           )
         } catch (error) {
           this.logger.error(
@@ -45,11 +48,13 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
 
       case DiscoverFacilitatorEventsQueue.JOB_DISCOVER_ALLOCATION_UPDATED_EVENTS:
         try {
-          const lastSafeCompleteBlock =
-            await this.eventsDiscoveryService.getLastSafeCompleteBlockNumber()
+          const { from, to } = (await job.getChildrenValues<EventDiscoveryQueryRangeDto>())[
+            DiscoverFacilitatorEventsQueue.JOB_DISCOVER_REQUESTING_UPDATE_EVENTS
+          ]
 
           return await this.eventsDiscoveryService.discoverAllocationUpdatedEvents(
-            lastSafeCompleteBlock
+            from,
+            to
           )
         } catch (error) {
           this.logger.error(
@@ -62,9 +67,10 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
 
       case DiscoverFacilitatorEventsQueue.JOB_MATCH_DISCOVERED_FACILITATOR_EVENTS:
         try {
-          await this.eventsDiscoveryService.matchDiscoveredFacilitatorEvents(
-            job.data.currentBlock
-          )
+          const { to } = (await job.getChildrenValues<EventDiscoveryQueryRangeDto>())[
+            DiscoverFacilitatorEventsQueue.JOB_DISCOVER_REQUESTING_UPDATE_EVENTS
+          ]
+          await this.eventsDiscoveryService.matchDiscoveredFacilitatorEvents(to)
         } catch (error) {
           this.logger.error(
             `Exception during job ${job.name} [${job.id}]`,

@@ -6,6 +6,7 @@ import { FlowProducer, Queue } from 'bullmq'
 import { ethers } from 'ethers'
 import { sortBy, uniqBy } from 'lodash'
 import { Model, Types as MongooseTypes } from 'mongoose'
+import { BigNumber } from 'bignumber.js'
 
 import { FACILITATOR_EVENTS, facilitatorABI } from './abi/facilitator'
 import { RequestingUpdateEvent } from './schemas/requesting-update-event'
@@ -27,6 +28,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   private static readonly removeOnComplete = true
   private static readonly removeOnFail = 8
   public static readonly DEFAULT_DELAY = 1000 * 60 * 60 // 1 hour
+  public static readonly MAX_BLOCK_QUERY_RANGE = 5000
 
   public static jobOpts = {
     removeOnComplete: EventsDiscoveryService.removeOnComplete,
@@ -170,8 +172,10 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
       const eventsDiscoveryServiceState =
         await this.eventsDiscoveryServiceStateModel.findOne()
       if (eventsDiscoveryServiceState) {
+        this.logger.log('Found existing EventsDiscoveryServiceState')
         this.state = eventsDiscoveryServiceState.toObject()
       } else {
+        this.logger.log('Creating new EventsDiscoveryServiceState')
         await this.eventsDiscoveryServiceStateModel.create(this.state)
       }
 
@@ -193,24 +197,39 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     }
   }
 
-  public async discoverRequestingUpdateEvents(from?: ethers.BlockTag) {
+  public async discoverRequestingUpdateEvents(
+    from?: ethers.BlockTag,
+    to: ethers.BlockTag = 'latest'
+  ) {
     const fromBlock = from || this.facilitatorContractDeployedBlock
+    let toBlock = to === 'latest' ? await this.provider.getBlockNumber() : to
+    const blockQueryRange = BigNumber(toBlock).minus(fromBlock)
+    if (blockQueryRange.gt(EventsDiscoveryService.MAX_BLOCK_QUERY_RANGE)) {
+      this.logger.warn(
+        `Querying too many blocks (${blockQueryRange.toString()})` +
+          ` - limiting to ${EventsDiscoveryService.MAX_BLOCK_QUERY_RANGE}`
+      )
+      toBlock = BigNumber(fromBlock)
+        .plus(EventsDiscoveryService.MAX_BLOCK_QUERY_RANGE)
+        .toNumber() 
+    }
 
     this.logger.log(
       `Discovering ${FACILITATOR_EVENTS.RequestingUpdate} events` +
-        ` from block ${fromBlock.toString()}`
+        ` from block [${fromBlock.toString()}] to block [${toBlock.toString()}]`
     )
 
     const filter =
       this.facilitatorContract.filters[FACILITATOR_EVENTS.RequestingUpdate]()
     const events = (await this.facilitatorContract.queryFilter(
       filter,
-      fromBlock
+      fromBlock,
+      toBlock
     )) as ethers.EventLog[]
 
     this.logger.log(
-      `Found ${events.length} RequestingUpdate events` +
-        ` since block ${fromBlock.toString()}`
+      `Found [${events.length}] ${FACILITATOR_EVENTS.RequestingUpdate} events` +
+        ` between blocks [${fromBlock.toString()}] and [${toBlock.toString()}]`
     )
 
     let knownEvents = 0, newEvents = 0
@@ -241,19 +260,25 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     }
 
     this.logger.log(
-      `Stored ${newEvents} newly discovered` +
+      `Stored [${newEvents}] newly discovered` +
         ` ${FACILITATOR_EVENTS.RequestingUpdate} events` +
-        ` and skipped storing ${knownEvents} previously known` +
-        ` out of ${events.length} total`
+        ` and skipped storing [${knownEvents}] previously known` +
+        ` out of [${events.length}] total`
     )
+
+    return { from: fromBlock, to: toBlock }
   }
 
-  public async discoverAllocationUpdatedEvents(from?: ethers.BlockTag) {
-    const fromBlock = from || this.facilitatorContractDeployedBlock
+  public async discoverAllocationUpdatedEvents(
+    from: ethers.BlockTag,
+    to: ethers.BlockTag
+  ) {
+    const fromBlock = from
+    const toBlock = to
 
     this.logger.log(
       `Discovering ${FACILITATOR_EVENTS.AllocationUpdated} events` +
-        ` from block ${fromBlock.toString()}`
+        ` from block [${fromBlock.toString()}] to block [${toBlock.toString()}]`
     )
 
     const filter =
@@ -264,8 +289,8 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     )) as ethers.EventLog[]
 
     this.logger.log(
-      `Found ${events.length} ${FACILITATOR_EVENTS.AllocationUpdated} events` +
-        ` since block ${fromBlock.toString()}`
+      `Found [${events.length}] ${FACILITATOR_EVENTS.AllocationUpdated} events` +
+        ` between blocks [${fromBlock.toString()}] and [${toBlock.toString()}]`
     )
 
     let knownEvents = 0, newEvents = 0
@@ -296,14 +321,14 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     }
 
     this.logger.log(
-      `Stored ${newEvents} newly discovered` +
+      `Stored [${newEvents}] newly discovered` +
         ` ${FACILITATOR_EVENTS.AllocationUpdated} events` +
-        ` and skipped storing ${knownEvents} previously known` +
-        ` out of ${events.length} total`
+        ` and skipped storing [${knownEvents}] previously known` +
+        ` out of [${events.length}] total`
     )
   }
 
-  public async matchDiscoveredFacilitatorEvents(currentBlock: number) {
+  public async matchDiscoveredFacilitatorEvents(to: ethers.BlockTag) {
     this.logger.log('Matching RequestingUpdate to AllocationUpdated events')
 
     const unfulfilledRequestingUpdateEvents =
@@ -311,7 +336,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
 
     if (unfulfilledRequestingUpdateEvents.length < 1) {
       this.logger.log(`No unfulfilled RequestingUpdate events to match`)
-
+      await this.setLastSafeCompleteBlockNumber(BigNumber(to).toNumber())
       return
     }
 
@@ -363,7 +388,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
 
     const duplicateAddresses = unmatchedEvents.length - unmatchedToQueue.length
     const lastSafeCompleteBlock =
-      unmatchedToQueue.at(0)?.blockNumber || currentBlock
+      unmatchedToQueue.at(0)?.blockNumber || BigNumber(to).toNumber()
 
     this.logger.log(
       `Matched ${matchedCount} RequestingUpdate to AllocationUpdated events` +
