@@ -51,9 +51,9 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
 
       case DiscoverFacilitatorEventsQueue.JOB_DISCOVER_ALLOCATION_UPDATED_EVENTS:
         try {
-          const { from, to } = Object.values(
-            await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
-          ).at(0)
+          const flowData = await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
+          this.logger.debug(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
+          const { from, to } = Object.values(flowData).at(0)
 
           return await this.eventsDiscoveryService.discoverAllocationUpdatedEvents(
             from,
@@ -70,9 +70,9 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
 
       case DiscoverFacilitatorEventsQueue.JOB_MATCH_DISCOVERED_FACILITATOR_EVENTS:
         try {
-          const { to } = Object.values(
-            await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
-          ).at(0)
+          const flowData = await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
+          this.logger.debug(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
+          const { to } = Object.values(flowData).at(0)
           await this.eventsDiscoveryService.matchDiscoveredFacilitatorEvents(to)
         } catch (error) {
           this.logger.error(
