@@ -52,7 +52,7 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
       case DiscoverHodlerEventsQueue.JOB_DISCOVER_REWARDED_EVENTS:
         try {
           const flowData = await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
-          this.logger.debug(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
+          this.logger.log(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
           const { from, to } = Object.values(flowData).at(0)
 
           return await this.rewardsDiscoveryService.discoverRewardedEvents(
@@ -71,7 +71,7 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
       case DiscoverHodlerEventsQueue.JOB_MATCH_DISCOVERED_HODLER_EVENTS:
         try {
           const flowData = await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
-          this.logger.debug(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
+          this.logger.log(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
           const { to } = Object.values(flowData).at(0)
           await this.rewardsDiscoveryService.matchDiscoveredHodlerEvents(to)
         } catch (error) {
