@@ -51,9 +51,9 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
 
       case DiscoverHodlerEventsQueue.JOB_DISCOVER_REWARDED_EVENTS:
         try {
-          const { from, to } = (await job.getChildrenValues<EventDiscoveryQueryRangeDto>())[
-            DiscoverHodlerEventsQueue.JOB_DISCOVER_UPDATE_REWARDS_EVENTS
-          ]
+          const { from, to } = Object.values(
+            await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
+          ).at(0)
 
           return await this.rewardsDiscoveryService.discoverRewardedEvents(
             from,
@@ -70,9 +70,9 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
 
       case DiscoverHodlerEventsQueue.JOB_MATCH_DISCOVERED_HODLER_EVENTS:
         try {
-          const { to } = (await job.getChildrenValues<EventDiscoveryQueryRangeDto>())[
-            DiscoverHodlerEventsQueue.JOB_DISCOVER_UPDATE_REWARDS_EVENTS
-          ]
+          const { to } = Object.values(
+            await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
+          ).at(0)
           await this.rewardsDiscoveryService.matchDiscoveredHodlerEvents(to)
         } catch (error) {
           this.logger.error(
