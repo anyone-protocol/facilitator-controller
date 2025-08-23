@@ -55,10 +55,12 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
           this.logger.log(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
           const { from, to } = Object.values(flowData).at(0)
 
-          return await this.eventsDiscoveryService.discoverAllocationUpdatedEvents(
+          await this.eventsDiscoveryService.discoverAllocationUpdatedEvents(
             from,
             to
           )
+
+          return { from, to }
         } catch (error) {
           this.logger.error(
             `Exception during job ${job.name} [${job.id}]`,
