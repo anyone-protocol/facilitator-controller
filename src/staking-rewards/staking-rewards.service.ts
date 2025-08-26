@@ -65,7 +65,7 @@ export class StakingRewardsService implements OnApplicationBootstrap {
 
   public async claimRewards(
     address: string
-  ): Promise<ClaimedRewardsData | false> {
+  ): Promise<ClaimedRewardsData> {
     const { result } = await sendAosMessage({
       processId: this.stakingRewardsProcessId,
       signer: this.signer as any,
@@ -92,7 +92,7 @@ export class StakingRewardsService implements OnApplicationBootstrap {
         `Undefined amount for ${address}: ${result.Messages[0].Data}`
       )
 
-      return false
+      return { address, amount: '0', kind: 'staking' }
     }
 
     this.logger.log(`Got allocation for ${address}: ${rewarded}`)

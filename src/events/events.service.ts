@@ -661,37 +661,41 @@ export class EventsService
       } else {
         try {
           const totalReward = stakingReward.plus(relayReward)
-          const receiverAddress = (requestedRedeem)? hodlerAddress : this.hodlerContractAddress
+          if (totalReward.isGreaterThan('0')) {
+            const receiverAddress = (requestedRedeem)? hodlerAddress : this.hodlerContractAddress
 
-          this.logger.log(`Preapproving ${receiverAddress} for total ${totalReward.toFixed(0)} = ` +
-            `staking [${stakingReward.toFixed(0)}] + relay [${relayReward.toFixed(0)}]...`
-          )
+            this.logger.log(`Preapproving ${receiverAddress} for total ${totalReward.toFixed(0)} = ` +
+              `staking [${stakingReward.toFixed(0)}] + relay [${relayReward.toFixed(0)}]...`
+            )
 
-          // @ts-ignore
-          const approveReceipt = await this.tokenContract.connect(this.rewardsPool).approve(
-            receiverAddress,
-            totalReward.toFixed(0)
-          )
-          const approveTx = await approveReceipt.wait()
-          this.logger.log(
-            `Preapproved ${receiverAddress} for total ${totalReward.toFixed(0)} tx: [${approveTx.hash}]`
-          )
+            // @ts-ignore
+            const approveReceipt = await this.tokenContract.connect(this.rewardsPool).approve(
+              receiverAddress,
+              totalReward.toFixed(0)
+            )
+            const approveTx = await approveReceipt.wait()
+            this.logger.log(
+              `Preapproved ${receiverAddress} for total ${totalReward.toFixed(0)} tx: [${approveTx.hash}]`
+            )
 
-          this.logger.log(
-            `Rewarding [${hodlerAddress}] for ` +
-              `staking [${stakingReward.toFixed(0)}] relay [${relayReward.toFixed(0)}]...`
-          )
-          const receipt = await this.hodlerSignerContract.reward(
-            hodlerAddress,
-            relayReward.toFixed(0),
-            stakingReward.toFixed(0),
-            BigNumber(gasEstimate).toFixed(0),
-            requestedRedeem
-          )
-          const tx = await receipt.wait()
-          this.logger.log(
-            `Rewarded [${hodlerAddress}] tx: [${tx.hash}]`
-          )
+            this.logger.log(
+              `Rewarding [${hodlerAddress}] for ` +
+                `staking [${stakingReward.toFixed(0)}] relay [${relayReward.toFixed(0)}]...`
+            )
+            const receipt = await this.hodlerSignerContract.reward(
+              hodlerAddress,
+              relayReward.toFixed(0),
+              stakingReward.toFixed(0),
+              BigNumber(gasEstimate).toFixed(0),
+              requestedRedeem
+            )
+            const tx = await receipt.wait()
+            this.logger.log(
+              `Rewarded [${hodlerAddress}] tx: [${tx.hash}]`
+            )
+          } else {
+            this.logger.debug(`No rewards to update for ${hodlerAddress}`)
+          }
 
           return true
         } catch (updateError) {

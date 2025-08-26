@@ -43,11 +43,11 @@ export class HodlerUpdatesQueue extends WorkerHost {
             return await this.relayRewards.claimRewards(address)
           } else {
             this.logger.error('Missing address in job data')
-            return false
+            return { address: 'undefined', amount: '0', kind: 'relay' }
           }
         } catch (error) {
           this.logger.error('Exception while getting current relay rewards:', error)
-          return false
+          return { address: 'mia', amount: '0', kind: 'relay' }
         }
         
       case HodlerUpdatesQueue.JOB_GET_STAKING_REWARDS:
@@ -61,11 +61,11 @@ export class HodlerUpdatesQueue extends WorkerHost {
             return await this.stakingRewards.claimRewards(address)
           } else {
             this.logger.error('Missing address in job data')
-            return false
+            return { address: 'undefined', amount: '0', kind: 'staking' }
           }
         } catch (error) {
           this.logger.error('Exception while getting current staking rewards:', error)
-          return false
+          return { address: 'mia', amount: '0', kind: 'staking' }
         }
 
       case HodlerUpdatesQueue.JOB_UPDATE_REWARDS:

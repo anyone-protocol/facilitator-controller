@@ -94,7 +94,7 @@ export class RelayRewardsService {
   
   public async claimRewards(
     address: string
-  ): Promise<ClaimedRewardsData | false> {
+  ): Promise<ClaimedRewardsData> {
     const { result } = await sendAosMessage({
       processId: this.relayRewardsProcessId,
       signer: this.signer as any,
