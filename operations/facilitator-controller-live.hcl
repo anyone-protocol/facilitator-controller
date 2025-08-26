@@ -13,11 +13,8 @@ job "facilitator-controller-live" {
 
     update {
       max_parallel     = 1
-      canary           = 1
       min_healthy_time = "30s"
       healthy_deadline = "5m"
-      auto_revert      = true
-      auto_promote     = true
     }
 
     network {
@@ -29,6 +26,7 @@ job "facilitator-controller-live" {
     task "facilitator-controller-live-service" {
       driver = "docker"
       kill_timeout = "30s"
+
       config {
         network_mode = "host"
         image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
@@ -120,7 +118,7 @@ job "facilitator-controller-live" {
           interval = "5s"
           timeout  = "10s"
           check_restart {
-            limit = 180
+            limit = 10
             grace = "15s"
           }
         }
