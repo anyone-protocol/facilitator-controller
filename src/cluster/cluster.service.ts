@@ -140,9 +140,14 @@ export class ClusterService
       behavior: 'delete',
     })
 
-    setInterval(() => {
+    setInterval(async () =>{
       if (this.consul) {
-        this.consul.session.renew(ID)
+        try {
+          const result = await this.consul.session.renew(ID);
+          this.logger.log('Renewing consul session result', result);
+        } catch (error) {
+          this.logger.error('Failed to renew consul session', error);
+        }
       }
     }, 10000)
 
