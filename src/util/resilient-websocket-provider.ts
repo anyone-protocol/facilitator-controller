@@ -12,6 +12,15 @@ const KEEP_ALIVE_CHECK_INTERVAL = 60 * 1000
 const MAX_RECONNECTION_ATTEMPTS = 10
 const RECONNECTION_DELAY = 5000
 
+export const WEBSOCKET_APP_SHUTDOWN_NORMAL_CODE = 1000
+export const WEBSOCKET_APP_SHUTDOWN_TCP_CODE = 1005
+export const WEBSOCKET_APP_SHUTDOWN_CUSTOM_CODE = 4200
+export const WEBSOCKET_APP_SHUTDOWN_CODES = [
+  WEBSOCKET_APP_SHUTDOWN_NORMAL_CODE,
+  WEBSOCKET_APP_SHUTDOWN_TCP_CODE,
+  WEBSOCKET_APP_SHUTDOWN_CUSTOM_CODE
+]
+
 interface Subscription {
   type: ProviderEvent
   listener: Listener
@@ -54,9 +63,12 @@ class ResilientWebsocketProvider {
 
   async connect(): Promise<WebSocketProvider | null> {
     return new Promise((resolve, reject) => {
-      const closeConnection = () => {
-        this.logger.log(`Closing connection...`)
+      const closeConnection = (code?: number) => {
+        this.logger.log(`Closing connection... Code: ${code}`)
         this.cleanupConnection()
+        if (WEBSOCKET_APP_SHUTDOWN_CODES.includes(code)) {
+          this.terminate = true
+        }
         if (!this.terminate) {
           this.reconnectionAttempts++
           this.logger.debug(
@@ -115,11 +127,14 @@ class ResilientWebsocketProvider {
           }
         })
 
-        this.ws.on('close', () => {
-          this.logger.error(
-            `The websocket connection was closed for ${this.name}`
-          )
-          closeConnection()
+        this.ws.on('close', (code?: number, reason?: string) => {
+          const msg = `The websocket connection was closed for ${this.name}. Code: ${code}, Reason: ${reason}`
+          if (WEBSOCKET_APP_SHUTDOWN_CODES.includes(code)) {
+            this.logger.log(msg)
+          } else {
+            this.logger.error(msg)
+          }
+          closeConnection(code)
         })
 
         this.ws.on('error', (error) => {
@@ -156,10 +171,10 @@ class ResilientWebsocketProvider {
   private setupKeepAlive() {
     this.keepAliveInterval = setInterval(() => {
       if (!this.ws) {
-        // this.logger.debug('No websocket, exiting keep alive interval')
+        this.logger.debug('No websocket, exiting keep alive interval')
         return
       }
-      // this.logger.debug('Checking if the connection is alive, sending a ping')
+      this.logger.debug('Checking if the connection is alive, sending a ping')
 
       this.ws.ping()
 

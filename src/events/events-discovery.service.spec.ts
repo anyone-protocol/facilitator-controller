@@ -112,15 +112,18 @@ describe('EventsDiscoveryService', () => {
   }, 30_000)
 
   afterEach(async () => {
-    // await evmProviderService.onApplicationShutdown()
+    console.log('afterEach: Shutting down evmProviderService...')
+    await evmProviderService.onApplicationShutdown()
+    console.log('afterEach: Shutting down module...')
     await module.close()
-  })
+    console.log('afterEach: Module shut down complete.')
+  }, 30_000)
 
-  it.skip('should be defined', () => {
+  it('should be defined', () => {
     expect(service).toBeDefined()
   })
 
-  it('Does event discovery', async () => {
+  it.skip('Does event discovery', async () => {
     const lastSafeCompleteBlock = await service.getLastSafeCompleteBlockNumber()
     const blockQueryRange = await service.discoverRequestingUpdateEvents(lastSafeCompleteBlock)
     expect(blockQueryRange).toBeDefined()

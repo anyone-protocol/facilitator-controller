@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config'
 import { ethers } from 'ethers'
 
-import { createResilientProviders } from '../util/resilient-websocket-provider'
+import { createResilientProviders, WEBSOCKET_APP_SHUTDOWN_CUSTOM_CODE } from '../util/resilient-websocket-provider'
 
 const DefaultEvmProviderServiceConfig = {
   EVM_NETWORK: '',
@@ -55,19 +55,27 @@ export class EvmProviderService
   }
 
   onApplicationShutdown() {
-    const waitForWebsocketAndDestroy = (provider: ethers.WebSocketProvider) => {
-      setTimeout(() => {
-        if (provider && provider.websocket.readyState) {
-          provider.websocket.close()
-          provider.destroy()
-        } else {
-          waitForWebsocketAndDestroy(provider)
-        }
-      }, DESTROY_WEBSOCKET_INTERVAL)
+    if (this.primaryWebSocketProvider && !this.primaryWebSocketProvider.destroyed) {
+      this.logger.log('Shutting down primary WebSocket provider...')
+      // try {
+      //   this.primaryWebSocketProvider.websocket?.close(
+      //     WEBSOCKET_APP_SHUTDOWN_CUSTOM_CODE,
+      //     'Application Shutdown'
+      //   )
+      // } catch (err) {}
+      this.primaryWebSocketProvider.destroy()
     }
 
-    waitForWebsocketAndDestroy(this.primaryWebSocketProvider)
-    waitForWebsocketAndDestroy(this.secondaryWebSocketProvider)
+    if (this.secondaryWebSocketProvider && !this.secondaryWebSocketProvider.destroyed) {
+      this.logger.log('Shutting down secondary WebSocket provider...')
+      // try {
+      //   this.secondaryWebSocketProvider.websocket?.close(
+      //     WEBSOCKET_APP_SHUTDOWN_CUSTOM_CODE,
+      //     'Application Shutdown'
+      //   )
+      // } catch (err) {}
+      this.secondaryWebSocketProvider.destroy()
+    }
   }
 
   async onApplicationBootstrap() {
@@ -141,8 +149,9 @@ export class EvmProviderService
     try {
       const provider = new ethers.WebSocketProvider(providerWssUrl)
       const blockNumber = await provider.getBlockNumber()
+      provider.destroy()
       this.logger.log(
-        `Successfully connected to ${providerName} WebSocket provider. ` +
+        `Successfully checked credits for ${providerName} WebSocket provider. ` +
           `Block number: ${blockNumber}`
       )
     } catch (error) {
