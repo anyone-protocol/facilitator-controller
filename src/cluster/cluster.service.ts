@@ -122,7 +122,7 @@ export class ClusterService
   }
 
   async beforeApplicationShutdown(): Promise<void> {
-    this.logger.log('Shutting down cluster service...')
+    this.logger.log('Shutting down cluster...')
     if (this.consul && this.isLocalLeader() && this.sessionId) {
       this.logger.log('Cleaning up leader locks...')
       await this.consul.session.destroy(this.sessionId)
