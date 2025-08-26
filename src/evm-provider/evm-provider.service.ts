@@ -57,7 +57,8 @@ export class EvmProviderService
   onApplicationShutdown() {
     const waitForWebsocketAndDestroy = (provider: ethers.WebSocketProvider) => {
       setTimeout(() => {
-        if (provider.websocket.readyState) {
+        if (provider && provider.websocket.readyState) {
+          provider.websocket.close()
           provider.destroy()
         } else {
           waitForWebsocketAndDestroy(provider)
