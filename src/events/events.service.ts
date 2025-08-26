@@ -703,7 +703,7 @@ export class EventsService
             const isWarning = this.isRewardWarning(updateError.reason)
             if (isWarning) {
               this.logger.error(
-                `Reward needs manual intervention: ` +
+                `Reward of ${hodlerAddress} needs manual intervention: ` +
                   `${updateError.reason}`
               )
               return false
@@ -712,11 +712,11 @@ export class EventsService
             const isPassable = this.isRewardPassable(updateError.reason)
             if (isPassable) {
               this.logger.log(
-                `Reward tx ignored: ${updateError.reason}`
+                `Reward tx of ${hodlerAddress} ignored: ${updateError.reason}`
               )
             } else {
               this.logger.error(
-                `Reward transaction failed: ${updateError.reason}`
+                `Reward transaction of ${hodlerAddress} failed: ${updateError.reason}`
               )
             }
             return isPassable
