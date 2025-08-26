@@ -135,6 +135,7 @@ export class ClusterService
     const { ID } = await this.consul.session.create({
       name: this.serviceId,
       ttl: '15s',
+      behavior: 'delete',
     })
 
     setInterval(() => {
