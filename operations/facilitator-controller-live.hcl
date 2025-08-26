@@ -118,7 +118,7 @@ job "facilitator-controller-live" {
           interval = "5s"
           timeout  = "10s"
           check_restart {
-            limit = 10
+            limit = 180
             grace = "15s"
           }
         }
