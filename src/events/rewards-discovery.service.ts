@@ -27,7 +27,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
 
   private static readonly removeOnComplete = true
   private static readonly removeOnFail = 8
-  public static readonly DEFAULT_DELAY = 1000 * 60 * 60 // 1 hour
+  public static readonly DEFAULT_DELAY = 1000 * 60 * 5 // 5 minutes
   public static readonly MAX_BLOCK_QUERY_RANGE = 5000
 
   public static jobOpts = {
