@@ -28,6 +28,7 @@ job "facilitator-controller-live" {
 
     task "facilitator-controller-live-service" {
       driver = "docker"
+      kill_timeout = "30s"
       config {
         network_mode = "host"
         image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
