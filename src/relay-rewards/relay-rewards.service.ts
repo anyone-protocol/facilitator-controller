@@ -105,20 +105,25 @@ export class RelayRewardsService {
       ]
     })
 
-    this.logger.log(`Claim-Rewards response from AO for ${address}: ${result.Messages[0].Data}`)
+    this.logger.debug(`Claim-Rewards response from AO for ${address}: ${result.Messages[0].Data}`)
 
-    const amount = BigNumber(JSON.parse(result.Messages[0].Data)).toFixed(0)
-
-    if (amount === 'NaN') {
-      this.logger.warn(
-        `Undefined amount for ${address}: ${result.Messages[0].Data} -> ${amount}`
-      )
-
+    if (result.Messages.length == 0) {
+      this.logger.warn(`No messages in Claim-Rewards response from AO for ${address}, Response: ${JSON.stringify(result)}`)
       return { address, amount: '0', kind: 'relay' }
+    } else {
+      const amount = BigNumber(JSON.parse(result.Messages[0].Data)).toFixed(0)
+
+      if (amount === 'NaN') {
+        this.logger.warn(
+          `Undefined amount for ${address}: ${result.Messages[0].Data} -> ${amount}`
+        )
+
+        return { address, amount: '0', kind: 'relay' }
+      }
+
+      this.logger.log(`Claimed rewards for ${address}: ${amount}`)
+
+      return { address, amount, kind: 'relay' }
     }
-
-    this.logger.log(`Claimed rewards for ${address}: ${amount}`)
-
-    return { address, amount, kind: 'relay' }
   }
 }

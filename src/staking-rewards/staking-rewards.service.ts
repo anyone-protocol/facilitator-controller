@@ -78,25 +78,30 @@ export class StakingRewardsService implements OnApplicationBootstrap {
 
     this.logger.log(`Get-Rewards response from AO for ${address}: ${result.Messages[0].Data}`)
 
-    const rewardsPerOperator = JSON.parse(result.Messages[0].Data)
-    var totalRewards = BigNumber(0)
-    for (const operator of Object.keys(rewardsPerOperator)) {
-      const amount = BigNumber(rewardsPerOperator[operator])
-      totalRewards = totalRewards.plus(amount)
-    }
-
-    const rewarded = totalRewards.toFixed(0)
-
-    if (rewarded === 'NaN') {
-      this.logger.warn(
-        `Undefined amount for ${address}: ${result.Messages[0].Data}`
-      )
-
+    if (result.Messages.length == 0) {
+      this.logger.warn(`No messages in Claim-Rewards response from AO for ${address}, Response: ${JSON.stringify(result)}`)
       return { address, amount: '0', kind: 'staking' }
+    } else {
+      var totalRewards = BigNumber(0)
+      const rewardsPerOperator = JSON.parse(result.Messages[0].Data)
+      for (const operator of Object.keys(rewardsPerOperator)) {
+        const amount = BigNumber(rewardsPerOperator[operator])
+        totalRewards = totalRewards.plus(amount)
+      }
+
+      const rewarded = totalRewards.toFixed(0)
+
+      if (rewarded === 'NaN') {
+        this.logger.warn(
+          `Undefined amount for ${address}: ${result.Messages[0].Data}`
+        )
+
+        return { address, amount: '0', kind: 'staking' }
+      }
+
+      this.logger.log(`Got allocation for ${address}: ${rewarded}`)
+
+      return { address, amount: rewarded, kind: 'staking' }
     }
-
-    this.logger.log(`Got allocation for ${address}: ${rewarded}`)
-
-    return { address, amount: rewarded, kind: 'staking' }
   }
 }
