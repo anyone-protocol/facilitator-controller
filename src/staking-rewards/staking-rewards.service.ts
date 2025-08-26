@@ -78,7 +78,7 @@ export class StakingRewardsService implements OnApplicationBootstrap {
 
     this.logger.log(`Get-Rewards response from AO for ${address}: ${result.Messages[0].Data}`)
 
-    if (result.Messages.length == 0) {
+    if (!result.Messages || result.Messages.length == 0 || !result.Messages[0].Data) {
       this.logger.warn(`No messages in Claim-Rewards response from AO for ${address}, Response: ${JSON.stringify(result)}`)
       return { address, amount: '0', kind: 'staking' }
     } else {
