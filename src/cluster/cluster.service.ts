@@ -144,7 +144,7 @@ export class ClusterService
       if (this.consul) {
         try {
           const result = await this.consul.session.renew(ID);
-          this.logger.log('Renewing consul session result', result);
+          this.logger.log('Renewing consul session result', JSON.stringify(result));
         } catch (error) {
           this.logger.error('Failed to renew consul session', error);
         }
