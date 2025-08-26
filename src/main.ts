@@ -26,6 +26,8 @@ async function bootstrap() {
     })
   })
 
+  app.enableShutdownHooks()
+
   const port = process.env.PORT || 3000
   logz.info(`Starting facilitator-controller version: ${process.env.VERSION}`)
   logz.info(`Listening on ${port}`)
