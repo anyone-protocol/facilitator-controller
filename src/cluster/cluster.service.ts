@@ -168,8 +168,7 @@ export class ClusterService
         const result = await this.consul.kv.set({
           key: leaderKey,
           value: this.serviceId,
-          acquire: this.sessionId,
-          release: this.sessionId
+          acquire: this.sessionId
         })
 
         this.isLeader = result
