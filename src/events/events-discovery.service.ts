@@ -387,8 +387,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     }
 
     const duplicateAddresses = unmatchedEvents.length - unmatchedToQueue.length
-    const lastSafeCompleteBlock =
-      unmatchedToQueue.at(0)?.blockNumber || BigNumber(to).toNumber()
+    const lastSafeCompleteBlock = BigNumber(to).toNumber()
 
     this.logger.log(
       `Matched [${matchedCount}] RequestingUpdate to AllocationUpdated events` +
