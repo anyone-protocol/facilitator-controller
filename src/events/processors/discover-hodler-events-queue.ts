@@ -32,7 +32,7 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
       case DiscoverHodlerEventsQueue.JOB_DISCOVER_UPDATE_REWARDS_EVENTS:
         try {
           const lastSafeCompleteBlock =
-            await this.rewardsDiscoveryService.getLastSafeCompleteBlockNumber()
+            this.rewardsDiscoveryService.getLastSafeCompleteBlockNumber()
           this.logger.log(
             `Using lastSafeCompleteBlock [${lastSafeCompleteBlock}]`
           )

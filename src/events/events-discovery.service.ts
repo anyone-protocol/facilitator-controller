@@ -179,6 +179,19 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         await this.eventsDiscoveryServiceStateModel.create(this.state)
       }
 
+      if (
+        BigNumber(this.facilitatorContractDeployedBlock)
+          .gt(this.getLastSafeCompleteBlockNumber())
+      ) {
+        this.logger.log(
+          `Overriding lastSafeCompleteBlockNumber from env deployed block ` +
+            `[${this.facilitatorContractDeployedBlock}]`
+        )
+        await this.setLastSafeCompleteBlockNumber(
+          BigNumber(this.facilitatorContractDeployedBlock).toNumber()
+        )
+      }
+
       if (this.useFacility === 'true') {
         this.logger.log('Queueing immediate discovery of facilitator events')
         await this.enqueueDiscoverFacilitatorEventsFlow({ delayJob: 0 })
@@ -488,7 +501,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     await this.updateServiceState()
   }
 
-  public async getLastSafeCompleteBlockNumber() {
+  public getLastSafeCompleteBlockNumber() {
     return this.state.lastSafeCompleteBlock
   }
 }
