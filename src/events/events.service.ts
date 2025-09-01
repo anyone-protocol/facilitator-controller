@@ -638,8 +638,8 @@ export class EventsService
     }
     const hodlerAddress = data[0].address
 
-    var stakingReward = BigNumber(0)
-    var relayReward = BigNumber(0)
+    var stakingRewardAllocation = BigNumber(0)
+    var relayRewardAllocation = BigNumber(0)
     for (const reward of data) {
       if (reward.address != hodlerAddress) {
         this.logger.warn(
@@ -647,101 +647,124 @@ export class EventsService
         )
       } else {
         switch (reward.kind) {
-          case 'relay': relayReward = relayReward.plus(reward.amount); break
-          case 'staking': stakingReward = stakingReward.plus(reward.amount); break
+          case 'relay': relayRewardAllocation = relayRewardAllocation.plus(reward.amount); break
+          case 'staking': stakingRewardAllocation = stakingRewardAllocation.plus(reward.amount); break
         }
       }
     }
 
-    if (this.isLive === 'true') {
-      if (this.hodlerSignerContract == undefined) {
-        this.logger.error(
-          'Hodler signer contract not initialized, skipping claimed rewards update'
-        )
-      } else {
-        try {
-          const totalReward = stakingReward.plus(relayReward)
-          if (totalReward.isGreaterThan('0')) {
-            const receiverAddress = (requestedRedeem)? hodlerAddress : this.hodlerContractAddress
-
-            this.logger.log(`Preapproving ${receiverAddress} for total ${totalReward.toFixed(0)} = ` +
-              `staking [${stakingReward.toFixed(0)}] + relay [${relayReward.toFixed(0)}]...`
-            )
-
-            // @ts-ignore
-            const approveReceipt = await this.tokenContract.connect(this.rewardsPool).approve(
-              receiverAddress,
-              totalReward.toFixed(0)
-            )
-            const approveTx = await approveReceipt.wait()
-            this.logger.log(
-              `Preapproved ${receiverAddress} for total ${totalReward.toFixed(0)} tx: [${approveTx.hash}]`
-            )
-
-            this.logger.log(
-              `Rewarding [${hodlerAddress}] for ` +
-                `staking [${stakingReward.toFixed(0)}] relay [${relayReward.toFixed(0)}]...`
-            )
-            const receipt = await this.hodlerSignerContract.reward(
-              hodlerAddress,
-              relayReward.toFixed(0),
-              stakingReward.toFixed(0),
-              BigNumber(gasEstimate).toFixed(0),
-              requestedRedeem
-            )
-            const tx = await receipt.wait()
-            this.logger.log(
-              `Rewarded [${hodlerAddress}] tx: [${tx.hash}]`
-            )
-          } else {
-            this.logger.debug(`No rewards to update for ${hodlerAddress}`)
-          }
-
-          return true
-        } catch (updateError) {
-          if (updateError.reason) {
-            const isWarning = this.isRewardWarning(updateError.reason)
-            if (isWarning) {
-              this.logger.error(
-                `Reward of ${hodlerAddress} needs manual intervention: ` +
-                  `${updateError.reason}`
-              )
-              return false
-            }
-
-            const isPassable = this.isRewardPassable(updateError.reason)
-            if (isPassable) {
-              this.logger.log(
-                `Reward tx of ${hodlerAddress} ignored: ${updateError.reason}`
-              )
-            } else {
-              this.logger.error(
-                `Reward transaction of ${hodlerAddress} failed: ${updateError.reason}`
-              )
-            }
-            return isPassable
-          } else {
-            this.logger.error(
-              `Error while calling reward on hodler for ${hodlerAddress}:`,
-              updateError.stack
-            )
-          }
-        }
-      }
+    if (this.hodlerSignerContract == undefined) {
+      this.logger.error(
+        '[alarm=update-allocation-failed] Hodler signer contract not initialized, skipping claimed rewards update'
+      )
 
       this.logger.warn(
         `[alarm=update-allocation-failed] Reward failed for: [${JSON.stringify(data)}]`
       )
-
       return false
-    } else {
-      this.logger.warn(
-        `NOT LIVE: Not storing update of claimed rewards of ${
-          hodlerAddress
-        } of ${stakingReward.toFixed(0)} and ${relayReward.toFixed(0)} atomic tokens`
+    }
+
+    const totalClaimableReward = stakingRewardAllocation.plus(relayRewardAllocation)
+    if (totalClaimableReward.isLessThanOrEqualTo('0')) {
+      this.logger.debug(`No rewards to update for ${hodlerAddress} - ${totalClaimableReward.toFixed(0)}`)
+      return true
+    }
+
+    try {
+      const hodlerData = await this.hodlerContract.hodlers(hodlerAddress)
+      const claimedRelayRewards = BigNumber(hodlerData.claimedRelayRewards.toString())
+      const claimedStakingRewards = BigNumber(hodlerData.claimedStakingRewards.toString())
+
+      const currentRelayReward = relayRewardAllocation.minus(claimedRelayRewards)
+      const currentStakingReward = stakingRewardAllocation.minus(claimedStakingRewards)
+      const currentTotalReward = currentRelayReward.plus(currentStakingReward)
+            
+      if (currentTotalReward.isLessThanOrEqualTo('0')) {
+        this.logger.debug(`No new rewards to update for ${hodlerAddress}, ` +
+          `current total reward: ${currentTotalReward.toFixed(0)} = ` +
+          `staking [${stakingRewardAllocation.toFixed(0)}] - claimed [${claimedStakingRewards.toFixed(0)}] + ` +
+          `relay [${relayRewardAllocation.toFixed(0)}] - claimed [${claimedRelayRewards.toFixed(0)}]`
+        )
+        return true
+      }
+
+      const receiverAddress = (requestedRedeem)? hodlerAddress : this.hodlerContractAddress
+
+      this.logger.log(`Approving ${receiverAddress} for total ${currentTotalReward.toFixed(0)} = ` +
+        `staking [${currentStakingReward.toFixed(0)}] + relay [${currentRelayReward.toFixed(0)}]...`
       )
 
+      if (this.isLive === 'true') {
+        // @ts-ignore
+        const approveReceipt = await this.tokenContract.connect(this.rewardsPool).approve(
+          receiverAddress,
+          currentTotalReward.toFixed(0)
+        )
+        const approveTx = await approveReceipt.wait()
+      
+        this.logger.log(
+          `Approved ${receiverAddress} for total ${currentTotalReward.toFixed(0)} tx: [${approveTx.hash}]`
+        )
+      } else {
+        this.logger.warn(
+          `NOT LIVE: Skipped actual approval for ${receiverAddress} of ${currentTotalReward.toFixed(0)}`
+        )
+      }
+
+      this.logger.log(
+        `Rewarding [${hodlerAddress}] for ` +
+          `staking [${stakingRewardAllocation.toFixed(0)}] relay [${relayRewardAllocation.toFixed(0)}]...`
+      )
+
+      if (this.isLive === 'true') {
+        const receipt = await this.hodlerSignerContract.reward(
+          hodlerAddress,
+          relayRewardAllocation.toFixed(0),
+          stakingRewardAllocation.toFixed(0),
+          BigNumber(gasEstimate).toFixed(0),
+          requestedRedeem
+        )
+        const tx = await receipt.wait()
+        this.logger.log(
+          `Rewarded [${hodlerAddress}] tx: [${tx.hash}]`
+        )
+      } else {
+        this.logger.warn(
+          `NOT LIVE: Skipped actual reward for ${hodlerAddress} of ` +
+            `staking [${stakingRewardAllocation.toFixed(0)}] relay [${relayRewardAllocation.toFixed(0)}] with gas ${gasEstimate}`
+        )
+      }
+
       return true
+    } catch (updateError) {
+      if (updateError.reason) {
+        const isWarning = this.isRewardWarning(updateError.reason)
+        if (isWarning) {
+          this.logger.error(
+            `Reward of ${hodlerAddress} needs manual intervention: ` +
+              `${updateError.reason}`
+          )
+          return false
+        }
+
+        const isPassable = this.isRewardPassable(updateError.reason)
+        if (isPassable) {
+          this.logger.log(
+            `Reward tx of ${hodlerAddress} ignored: ${updateError.reason}`
+          )
+        } else {
+          this.logger.error(
+            `Reward transaction of ${hodlerAddress} failed: ${updateError.reason}`
+          )
+        }
+        return isPassable
+      } else {
+        this.logger.error(
+          `Error while calling reward on hodler for ${hodlerAddress}:`,
+          updateError.stack
+        )
+        return false
+      }
     }
   }
 
