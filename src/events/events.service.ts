@@ -311,6 +311,8 @@ export class EventsService
           this.logger.log(
             `UpdateAllocation for [${data.address}] tx: [${tx.hash}]`
           )
+          this.provider.off(tx.hash)
+          this.provider.off('block')
 
           return true
         } catch (updateError) {
@@ -677,6 +679,8 @@ export class EventsService
             this.logger.log(
               `Preapproved ${receiverAddress} for total ${totalReward.toFixed(0)} tx: [${approveTx.hash}]`
             )
+            this.provider.off(approveTx.hash)
+            this.provider.off('block')
 
             this.logger.log(
               `Rewarding [${hodlerAddress}] for ` +
@@ -693,6 +697,8 @@ export class EventsService
             this.logger.log(
               `Rewarded [${hodlerAddress}] tx: [${tx.hash}]`
             )
+            this.provider.off(tx.hash)
+            this.provider.off('block')
           } else {
             this.logger.debug(`No rewards to update for ${hodlerAddress}`)
           }
