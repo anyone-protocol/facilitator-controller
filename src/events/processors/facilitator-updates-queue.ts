@@ -64,6 +64,7 @@ export class FacilitatorUpdatesQueue extends WorkerHost {
 
             return hasPassedUpdate
           } else {
+            this.logger.error('No reward data found to update allocation')
             return false
           }
         } catch (e) {

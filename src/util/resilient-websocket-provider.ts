@@ -71,7 +71,7 @@ class ResilientWebsocketProvider {
         }
         if (!this.terminate) {
           this.reconnectionAttempts++
-          this.logger.debug(
+          this.logger.log(
             `Attempting to reconnect... ` +
               `(Attempt ${this.reconnectionAttempts})`
           )
@@ -89,6 +89,11 @@ class ResilientWebsocketProvider {
           this.maxRetriesCallback(this.name)
           resolve(null)
           return
+        } else {
+          this.logger.log(
+            `Starting connection to ${this.name}... ` +
+              `(Attempts ${this.reconnectionAttempts})`
+          )
         }
 
         this.ws = new WebSocket(this.url)
@@ -179,7 +184,12 @@ class ResilientWebsocketProvider {
       this.ws.ping()
 
       this.pingTimeout = setTimeout(() => {
-        if (this.ws) this.ws.terminate()
+        if (this.ws) {
+          this.logger.error(
+            'Did not receive pong back from server, terminating connection'
+          )
+          this.ws.terminate()
+        }
       }, EXPECTED_PONG_BACK)
     }, KEEP_ALIVE_CHECK_INTERVAL)
   }
