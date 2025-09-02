@@ -191,10 +191,8 @@ export class ClusterService
           backoffFactor: 1000,
         })
         .on('change', async (data: any) => {
-          if (!data) {
-            await acquireLock()
-          }
+          await acquireLock()
         })
-      }
+    }
   }
 }
