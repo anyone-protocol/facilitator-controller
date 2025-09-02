@@ -26,6 +26,8 @@ export class ClusterService
   private consul?: Consul
   private renewInterval?: NodeJS.Timeout
 
+  private isTerminating: boolean = false
+
   constructor(
     private readonly config: ConfigService<{
       CONSUL_HOST: string
@@ -124,6 +126,7 @@ export class ClusterService
 
   async beforeApplicationShutdown(): Promise<void> {
     this.logger.log('Shutting down cluster...')
+    this.isTerminating = true
     if (this.renewInterval) {
       clearInterval(this.renewInterval);
       this.renewInterval = undefined;
@@ -191,10 +194,10 @@ export class ClusterService
           backoffFactor: 1000,
         })
         .on('change', async (data: any) => {
-          if (!data) {
+          if (!this.isTerminating) {
             await acquireLock()
           }
         })
-      }
+    }
   }
 }

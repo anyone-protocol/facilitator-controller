@@ -7,10 +7,10 @@ import { Logger } from '@nestjs/common'
 import { Listener, Networkish, ProviderEvent, WebSocketProvider } from 'ethers'
 import { WebSocket } from 'ws'
 
-const EXPECTED_PONG_BACK = 15000
-const KEEP_ALIVE_CHECK_INTERVAL = 60 * 1000
+const EXPECTED_PONG_BACK = 60 * 1000
+const KEEP_ALIVE_CHECK_INTERVAL = 30 * 60 * 1000
 const MAX_RECONNECTION_ATTEMPTS = 10
-const RECONNECTION_DELAY = 5000
+const RECONNECTION_DELAY = 30000
 
 export const WEBSOCKET_APP_SHUTDOWN_NORMAL_CODE = 1000
 export const WEBSOCKET_APP_SHUTDOWN_TCP_CODE = 1005
@@ -38,6 +38,7 @@ class ResilientWebsocketProvider {
   readonly subscriptions: Set<Subscription>
   private reconnectionAttempts: number
   private name: string
+  private requirePong: boolean
   private maxRetriesCallback: (...args: any[]) => void
   private logger: Logger
 
@@ -45,6 +46,7 @@ class ResilientWebsocketProvider {
     url: string,
     network: Networkish,
     name: string,
+    requirePong: boolean,
     maxRetriesCallback: (...args: any[]) => void
   ) {
     this.url = url
@@ -57,6 +59,7 @@ class ResilientWebsocketProvider {
     this.subscriptions = new Set()
     this.reconnectionAttempts = 0
     this.name = name
+    this.requirePong = requirePong
     this.maxRetriesCallback = maxRetriesCallback
     this.logger = new Logger(`${ResilientWebsocketProvider.name}(${this.name})`)
   }
@@ -71,7 +74,7 @@ class ResilientWebsocketProvider {
         }
         if (!this.terminate) {
           this.reconnectionAttempts++
-          this.logger.debug(
+          this.logger.log(
             `Attempting to reconnect... ` +
               `(Attempt ${this.reconnectionAttempts})`
           )
@@ -89,6 +92,11 @@ class ResilientWebsocketProvider {
           this.maxRetriesCallback(this.name)
           resolve(null)
           return
+        } else {
+          this.logger.log(
+            `Starting connection to ${this.name}... ` +
+              `(Attempts ${this.reconnectionAttempts})`
+          )
         }
 
         this.ws = new WebSocket(this.url)
@@ -156,6 +164,11 @@ class ResilientWebsocketProvider {
           }
         })
 
+        this.ws.on('ping', () => {
+          // this.logger.debug('Received ping from server, sending pong back')
+          if (this.ws) this.ws.pong()
+        })
+
         this.ws.on('pong', () => {
           // this.logger.debug(
           //   'Received pong, so connection is alive, clearing the timeout'
@@ -176,10 +189,15 @@ class ResilientWebsocketProvider {
       }
       this.logger.debug('Checking if the connection is alive, sending a ping')
 
-      this.ws.ping()
+      if (this.requirePong) this.ws.ping()
 
       this.pingTimeout = setTimeout(() => {
-        if (this.ws) this.ws.terminate()
+        if (this.requirePong && this.ws) {
+          this.ws.terminate()
+          this.logger.error(
+            'Did not receive pong back from server, terminating connection'
+          )
+        }
       }, EXPECTED_PONG_BACK)
     }, KEEP_ALIVE_CHECK_INTERVAL)
   }
@@ -215,18 +233,19 @@ class ResilientWebsocketProvider {
 }
 
 async function createResilientProviders(
-  urls: { url: string; name: string }[],
+  urls: { url: string; name: string, requirePong: boolean }[],
   network: Networkish,
   maxRetriesCallback: (...args: any[]) => void
 ): Promise<WebSocketProvider[]> {
   const providers = await Promise.all(
-    urls.map(async ({ url, name }) => {
+    urls.map(async ({ url, name, requirePong }) => {
       const logger = new Logger(`${ResilientWebsocketProvider.name}(${name})`)
       try {        
         const resilientProvider = new ResilientWebsocketProvider(
           url,
           network,
           name,
+          requirePong,
           maxRetriesCallback
         )
         const provider = await resilientProvider.connect()

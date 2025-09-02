@@ -90,7 +90,7 @@ export class EvmProviderService
     )
     if (primaryCreditsCheckSuccess) {
       const [primaryProvider] = await createResilientProviders(
-        [{ url: primaryProviderUrl, name: primaryProviderName }],
+        [{ url: primaryProviderUrl, name: primaryProviderName, requirePong: true }],
         this.config.EVM_NETWORK,
         this.swapProviders.bind(this)
       )
@@ -113,7 +113,7 @@ export class EvmProviderService
     )
     if (secondaryCreditsCheckSuccess) {
       const [secondaryProvider] = await createResilientProviders(
-        [{ url: secondaryProviderUrl, name: secondaryProviderName }],
+        [{ url: secondaryProviderUrl, name: secondaryProviderName, requirePong: false }],
         this.config.EVM_NETWORK,
         this.swapProviders.bind(this)
       )

@@ -25,7 +25,7 @@ job "facilitator-controller-live" {
 
     task "facilitator-controller-live-service" {
       driver = "docker"
-      kill_timeout = "30s"
+      kill_timeout = "60s"
 
       config {
         network_mode = "host"

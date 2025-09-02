@@ -32,7 +32,7 @@ export class DiscoverFacilitatorEventsQueue extends WorkerHost {
       case DiscoverFacilitatorEventsQueue.JOB_DISCOVER_REQUESTING_UPDATE_EVENTS:
         try {
           const lastSafeCompleteBlock =
-            this.eventsDiscoveryService.getLastSafeCompleteBlockNumber()
+            await this.eventsDiscoveryService.getLastSafeCompleteBlockNumber()
           this.logger.log(
             `Using lastSafeCompleteBlock [${lastSafeCompleteBlock}]`
           )
