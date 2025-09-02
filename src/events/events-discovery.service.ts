@@ -47,11 +47,6 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   private facilitatorContract: ethers.Contract
   private facilitatorContractDeployedBlock: ethers.BlockTag
 
-  private state: {
-    _id?: MongooseTypes.ObjectId
-    lastSafeCompleteBlock?: number
-  } = {}
-
   constructor(
     private readonly config: ConfigService<{
       FACILITY_CONTRACT_ADDRESS: string
@@ -167,29 +162,6 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
         )
         await this.requestingUpdateEventModel.deleteMany({})
         this.logger.log('Nuked RequestingUpdateEvent collection')
-      }
-
-      const eventsDiscoveryServiceState =
-        await this.eventsDiscoveryServiceStateModel.findOne()
-      if (eventsDiscoveryServiceState) {
-        this.logger.log('Found existing EventsDiscoveryServiceState')
-        this.state = eventsDiscoveryServiceState.toObject()
-      } else {
-        this.logger.log('Creating new EventsDiscoveryServiceState')
-        await this.eventsDiscoveryServiceStateModel.create(this.state)
-      }
-
-      if (
-        BigNumber(this.facilitatorContractDeployedBlock)
-          .gt(this.getLastSafeCompleteBlockNumber())
-      ) {
-        this.logger.log(
-          `Overriding lastSafeCompleteBlockNumber from env deployed block ` +
-            `[${this.facilitatorContractDeployedBlock}]`
-        )
-        await this.setLastSafeCompleteBlockNumber(
-          BigNumber(this.facilitatorContractDeployedBlock).toNumber()
-        )
       }
 
       if (this.useFacility === 'true') {
@@ -490,18 +462,24 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     )
   }
 
-  private async updateServiceState() {
-    await this.eventsDiscoveryServiceStateModel.updateMany({}, this.state)
-  }
-
   private async setLastSafeCompleteBlockNumber(blockNumber: number) {
     this.logger.log(`Setting last safe complete block number ${blockNumber}`)
 
-    this.state.lastSafeCompleteBlock = blockNumber
-    await this.updateServiceState()
+    await this.eventsDiscoveryServiceStateModel.updateMany({}, { lastSafeCompleteBlock: blockNumber }, { upsert: true })
   }
 
-  public getLastSafeCompleteBlockNumber() {
-    return this.state.lastSafeCompleteBlock
+  public async getLastSafeCompleteBlockNumber() {
+    const eventsDiscoveryServiceState =
+      await this.eventsDiscoveryServiceStateModel.findOne()
+
+    if (eventsDiscoveryServiceState) {
+      const state = eventsDiscoveryServiceState.toObject()
+      this.logger.log(`Found existing EventsDiscoveryServiceState: ${state.lastSafeCompleteBlock}`)
+      return state.lastSafeCompleteBlock || this.facilitatorContractDeployedBlock
+    } else {
+      this.logger.log(`Creating new EventsDiscoveryServiceState: ${this.facilitatorContractDeployedBlock}`)
+      await this.eventsDiscoveryServiceStateModel.create({ lastSafeCompleteBlock: this.facilitatorContractDeployedBlock } )
+      return this.facilitatorContractDeployedBlock
+    }
   }
 }
