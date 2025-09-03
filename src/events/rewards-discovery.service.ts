@@ -172,19 +172,6 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
         await this.rewardsDiscoveryServiceStateModel.create(this.state)
       }
 
-      if (
-        BigNumber(this.hodlerContractDeployedBlock)
-          .gt(this.getLastSafeCompleteBlockNumber())
-      ) {
-        this.logger.log(
-          `Overriding lastSafeCompleteBlockNumber from env deployed block ` +
-            `[${this.hodlerContractDeployedBlock}]`
-        )
-        await this.setLastSafeCompleteBlockNumber(
-          BigNumber(this.hodlerContractDeployedBlock).toNumber()
-        )
-      }
-
       if (this.useHodler == 'true') {
         this.logger.log('Queueing immediate discovery of hodler events')
         await this.enqueueDiscoverHodlerEventsFlow({ delayJob: 0 })
@@ -503,7 +490,18 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     await this.updateServiceState()
   }
 
-  public getLastSafeCompleteBlockNumber() {
-    return this.state.lastSafeCompleteBlock
+  public async getLastSafeCompleteBlockNumber() {
+    const eventsDiscoveryServiceState =
+      await this.rewardsDiscoveryServiceStateModel.findOne()
+
+    if (eventsDiscoveryServiceState) {
+      const state = eventsDiscoveryServiceState.toObject()
+      this.logger.log(`Found existing EventsDiscoveryServiceState: ${state.lastSafeCompleteBlock}`)
+      return state.lastSafeCompleteBlock || this.hodlerContractDeployedBlock
+    } else {
+      this.logger.log(`Creating new RewardsDiscoveryServiceState: ${this.hodlerContractDeployedBlock}`)
+      await this.rewardsDiscoveryServiceStateModel.create({ lastSafeCompleteBlock: this.hodlerContractDeployedBlock } )
+      return this.hodlerContractDeployedBlock
+    }
   }
 }

@@ -804,5 +804,4 @@ export class EventsService
       EventsService.jobOpts
     )
   }
-
 }
