@@ -132,9 +132,17 @@ export class ClusterService
       this.renewInterval = undefined;
     }
     if (this.consul && this.isLocalLeader() && this.sessionId) {
-      this.logger.log('Cleaning up leader locks...')
+      this.logger.log('Cleaning up consul session...')
       await this.consul.session.destroy(this.sessionId)
+      if (this.isLeader) {
+        await this.delay(10000) // delay the shutdown a bit to allow consul to process the session invalidation
+        this.logger.log('Leader cleanup complete.')
+      }
     }
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms))
   }
 
   private async createSession(): Promise<string> {
