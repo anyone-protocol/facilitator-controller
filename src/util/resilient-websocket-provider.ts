@@ -262,6 +262,23 @@ async function createResilientProviders(
               throw error
             }
           }
+
+          // Wrap the provider's 'off' method to track unsubscriptions
+          const originalOff = provider.off.bind(provider)
+          provider.off = (eventName: ProviderEvent, listener: Listener) => {
+            resilientProvider.subscriptions.forEach((sub) => {
+              if (
+                sub.type === eventName &&
+                sub.listener === listener
+              ) {
+                resilientProvider.subscriptions.delete(sub)
+                logger.log(
+                  `Unsubscribed from ${eventName.toString()} for ${name}`
+                )
+              }
+            })
+            return originalOff(eventName, listener)
+          }
         }
         return provider
       } catch (error) {
