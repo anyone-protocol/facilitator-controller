@@ -19,6 +19,9 @@ import { HODLER_EVENTS, hodlerABI } from './abi/hodler'
 import { ClaimedRewardsData } from './dto/claimed-rewards-data'
 import { ClaimedConfigData } from './dto/claimed-config-data'
 import { RecoverRewardsData } from './dto/recover-rewards-data'
+import { EventsServiceState } from './schemas/events-service-state'
+import { InjectModel } from '@nestjs/mongoose'
+import { Model } from 'mongoose'
 
 @Injectable()
 @QueueEventsListener('facilitator-updates-queue')
@@ -86,7 +89,9 @@ export class EventsService
     @InjectQueue('hodler-updates-queue')
     public hodlerUpdatesQueue: Queue,
     @InjectFlowProducer('hodler-updates-flow')
-    public hodlerUpdatesFlow: FlowProducer
+    public hodlerUpdatesFlow: FlowProducer,
+    @InjectModel(EventsServiceState.name)
+    private readonly eventsServiceState: Model<EventsServiceState>,
   ) {
     super()
 
@@ -640,8 +645,8 @@ export class EventsService
     }
     const hodlerAddress = data[0].address
 
-    var stakingRewardAllocation = BigNumber(0)
-    var relayRewardAllocation = BigNumber(0)
+    var stakingRewardAllocation = 0n
+    var relayRewardAllocation = 0n
     for (const reward of data) {
       if (reward.address != hodlerAddress) {
         this.logger.warn(
@@ -649,8 +654,8 @@ export class EventsService
         )
       } else {
         switch (reward.kind) {
-          case 'relay': relayRewardAllocation = relayRewardAllocation.plus(reward.amount); break
-          case 'staking': stakingRewardAllocation = stakingRewardAllocation.plus(reward.amount); break
+          case 'relay': relayRewardAllocation = relayRewardAllocation + BigInt(reward.amount); break
+          case 'staking': stakingRewardAllocation = stakingRewardAllocation + BigInt(reward.amount); break
         }
       }
     }
@@ -666,74 +671,86 @@ export class EventsService
       return false
     }
 
-    const totalClaimableReward = stakingRewardAllocation.plus(relayRewardAllocation)
-    if (totalClaimableReward.isLessThanOrEqualTo('0')) {
-      this.logger.debug(`No rewards to update for ${hodlerAddress} - ${totalClaimableReward.toFixed(0)}`)
+    const totalClaimableReward = stakingRewardAllocation + BigInt(relayRewardAllocation)
+    if (totalClaimableReward <= 0n) {
+      this.logger.debug(`No rewards to update for ${hodlerAddress} - ${totalClaimableReward}`)
       return true
     }
 
+    var approveCost: bigint = undefined
+    var rewardCost: bigint = undefined
+
     try {
       const hodlerData = await this.hodlerContract.hodlers(hodlerAddress)
-      const claimedRelayRewards = BigNumber(hodlerData.claimedRelayRewards.toString())
-      const claimedStakingRewards = BigNumber(hodlerData.claimedStakingRewards.toString())
+      const claimedRelayRewards = BigInt(hodlerData.claimedRelayRewards.toString())
+      const claimedStakingRewards = BigInt(hodlerData.claimedStakingRewards.toString())
 
-      const currentRelayReward = relayRewardAllocation.minus(claimedRelayRewards)
-      const currentStakingReward = stakingRewardAllocation.minus(claimedStakingRewards)
-      const currentTotalReward = currentRelayReward.plus(currentStakingReward)
+      const currentRelayReward = relayRewardAllocation - BigInt(claimedRelayRewards)
+      const currentStakingReward = stakingRewardAllocation - BigInt(claimedStakingRewards)
+      const currentTotalReward = currentRelayReward + BigInt(currentStakingReward)
             
-      if (currentTotalReward.isLessThanOrEqualTo('0')) {
+      if (currentTotalReward >= 0) {
         this.logger.debug(`No new rewards to update for ${hodlerAddress}, ` +
-          `current total reward: ${currentTotalReward.toFixed(0)} = ` +
-          `staking [${stakingRewardAllocation.toFixed(0)}] - claimed [${claimedStakingRewards.toFixed(0)}] + ` +
-          `relay [${relayRewardAllocation.toFixed(0)}] - claimed [${claimedRelayRewards.toFixed(0)}]`
+          `current total reward: ${currentTotalReward} = ` +
+          `staking [${stakingRewardAllocation}] - claimed [${claimedStakingRewards}] + ` +
+          `relay [${relayRewardAllocation}] - claimed [${claimedRelayRewards}]`
         )
         return true
       }
 
       const receiverAddress = (requestedRedeem)? hodlerAddress : this.hodlerContractAddress
 
-      this.logger.log(`Approving ${receiverAddress} for total ${currentTotalReward.toFixed(0)} = ` +
-        `staking [${currentStakingReward.toFixed(0)}] + relay [${currentRelayReward.toFixed(0)}]...`
+      this.logger.log(`Approving ${receiverAddress} for total ${currentTotalReward} = ` +
+        `staking [${currentStakingReward}] + relay [${currentRelayReward}]...`
       )
 
       if (this.isLive === 'true') {
         // @ts-ignore
         const approveReceipt = await this.tokenContract.connect(this.rewardsPool).approve(
           receiverAddress,
-          currentTotalReward.toFixed(0)
+          currentTotalReward
         )
         const approveTx = await approveReceipt.wait()
+        this.provider.off(approveTx.hash)
+        this.provider.off('block')
+
+        approveCost = approveTx.gasUsed.mul(approveTx.gasPrice)
       
         this.logger.log(
-          `Approved ${receiverAddress} for total ${currentTotalReward.toFixed(0)} tx: [${approveTx.hash}]`
+          `Approved ${receiverAddress} for total ${currentTotalReward} tx: [${approveTx.hash}] cost: [${approveCost}]`
         )
       } else {
         this.logger.warn(
-          `NOT LIVE: Skipped actual approval for ${receiverAddress} of ${currentTotalReward.toFixed(0)}`
+          `NOT LIVE: Skipped actual approval for ${receiverAddress} of ${currentTotalReward}`
         )
       }
 
       this.logger.log(
         `Rewarding [${hodlerAddress}] for ` +
-          `staking [${stakingRewardAllocation.toFixed(0)}] relay [${relayRewardAllocation.toFixed(0)}]...`
+          `staking [${stakingRewardAllocation}] relay [${relayRewardAllocation}]...`
       )
 
       if (this.isLive === 'true') {
         const receipt = await this.hodlerSignerContract.reward(
           hodlerAddress,
-          relayRewardAllocation.toFixed(0),
-          stakingRewardAllocation.toFixed(0),
-          BigNumber(gasEstimate).toFixed(0),
+          relayRewardAllocation,
+          stakingRewardAllocation,
+          BigInt(gasEstimate),
           requestedRedeem
         )
         const tx = await receipt.wait()
+        this.provider.off(tx.hash)
+        this.provider.off('block')
+
+        rewardCost = tx.gasUsed.mul(tx.gasPrice)
+
         this.logger.log(
           `Rewarded [${hodlerAddress}] tx: [${tx.hash}]`
         )
       } else {
         this.logger.warn(
           `NOT LIVE: Skipped actual reward for ${hodlerAddress} of ` +
-            `staking [${stakingRewardAllocation.toFixed(0)}] relay [${relayRewardAllocation.toFixed(0)}] with gas ${gasEstimate}`
+            `staking [${stakingRewardAllocation}] relay [${relayRewardAllocation}] with gas ${gasEstimate}`
         )
       }
 
@@ -767,7 +784,69 @@ export class EventsService
         )
         return false
       }
+    } finally {
+      if (approveCost && !rewardCost) {
+        approveCost += await this.resetApproval(hodlerAddress, totalClaimableReward)
+      }
+      
+      if (approveCost > 0 && rewardCost > 0) {
+        const consumed = BigInt(gasEstimate)
+        await this.rebalanceRewardGas(approveCost || 0n, rewardCost || 0n, consumed, hodlerAddress)
+      }
     }
+  }
+
+  private async rebalanceRewardGas(approveCost: bigint, rewardCost: bigint, consumed: bigint, hodlerAddress: string) {
+    const totalCost = approveCost + rewardCost
+    const gasBalance = consumed - totalCost
+
+    this.logger.log(
+      `Reward process balance on gas for ${hodlerAddress}: ${ethers.formatEther(gasBalance.toString())} ETH`
+    )
+    if (gasBalance > consumed) {
+      this.logger.warn(`Overcharged on gas for ${hodlerAddress}: ${ethers.formatEther(gasBalance)} ETH`)
+    }
+    if (gasBalance < 0n) {
+      this.logger.error(`Undercharged on gas for ${hodlerAddress}: ${ethers.formatEther(gasBalance)} ETH`)
+    }
+
+    await this.eventsServiceState.updateMany({}, { $inc: { totalGasBalance: gasBalance } }, { upsert: true } )
+  }
+
+  private async resetApproval(hodlerAddress: string, totalClaimableReward: bigint): Promise<bigint> {
+    this.logger.warn(
+      `Approved ${hodlerAddress} for ${totalClaimableReward} but reward failed. Trying to reset approval...`
+    )
+    var approveCost: bigint = 0n
+
+    if (this.isLive === 'true') {
+      try {
+        // @ts-ignore
+        const approveReceipt = await this.tokenContract.connect(this.rewardsPool).approve(
+          this.hodlerContractAddress,
+          0
+        )
+        const approveTx = await approveReceipt.wait()
+        this.provider.off(approveTx.hash)
+        this.provider.off('block')
+
+        approveCost += approveTx.gasUsed.mul(approveTx.gasPrice)
+        this.logger.log(
+          `Reset approval for ${hodlerAddress} cost: [${approveCost}] tx: [${approveTx.hash}]`
+        )
+      } catch (error) {
+        this.logger.error(
+          `Failed to reset approval for ${hodlerAddress}:`,
+          error.stack
+        )
+      }
+    } else {
+      this.logger.warn(
+        `NOT LIVE: Skipped resetting approval for ${hodlerAddress} of ${totalClaimableReward}`
+      )
+    }
+
+    return approveCost
   }
 
   public async recoverReward(cfg: ClaimedConfigData, rewards: ClaimedRewardsData[]) {

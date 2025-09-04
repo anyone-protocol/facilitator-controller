@@ -28,6 +28,7 @@ import { UpdateRewardsEvent, UpdateRewardsEventSchema } from './schemas/update-r
 import { RewardedEvent, RewardedEventSchema } from './schemas/rewarded-event'
 import { RewardsDiscoveryService } from './rewards-discovery.service'
 import { ClusterModule } from '../cluster/cluster.module'
+import { EventsServiceState, EventsServiceStateSchema } from './schemas/events-service-state'
 
 @Module({
   imports: [
@@ -77,6 +78,10 @@ import { ClusterModule } from '../cluster/cluster.module'
       {
         name: RewardedEvent.name,
         schema: RewardedEventSchema
+      },
+      {
+        name: EventsServiceState.name,
+        schema: EventsServiceStateSchema
       },
       {
         name: RewardsDiscoveryServiceState.name,
