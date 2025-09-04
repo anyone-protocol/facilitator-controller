@@ -252,13 +252,13 @@ async function createResilientProviders(
         if (provider) {
           // Wrap the provider's 'on' method to track subscriptions
           const originalOn = provider.on.bind(provider)
-          provider.on = (eventName: ProviderEvent, listener: Listener) => {
-            resilientProvider.subscriptions.add({ type: eventName, listener })
-            logger.log(`Subscribed to ${eventName.toString()} for ${name}`)
+          provider.on = (providerEvent: ProviderEvent, listener: Listener) => {
+            resilientProvider.subscriptions.add({ type: providerEvent, listener })
+            logger.log(`Subscribed to ${JSON.stringify(providerEvent)} for ${name}`)
             try {
-              return originalOn(eventName, listener)
+              return originalOn(providerEvent, listener)
             } catch (error) {
-              logger.error(`Error subscribing to ${eventName}:`, error)
+              logger.error(`Error subscribing to ${providerEvent}:`, error)
               throw error
             }
           }
@@ -273,7 +273,7 @@ async function createResilientProviders(
               ) {
                 resilientProvider.subscriptions.delete(sub)
                 logger.log(
-                  `Unsubscribed from ${eventName.toString()} for ${name}`
+                  `Unsubscribed from ${JSON.stringify(eventName)} for ${name}`
                 )
               }
             })

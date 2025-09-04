@@ -479,15 +479,10 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     )
   }
 
-  private async updateServiceState() {
-    await this.rewardsDiscoveryServiceStateModel.updateMany({}, this.state)
-  }
-
   private async setLastSafeCompleteBlockNumber(blockNumber: number) {
     this.logger.log(`Setting last safe complete block number ${blockNumber}`)
 
-    this.state.lastSafeCompleteBlock = blockNumber
-    await this.updateServiceState()
+    await this.rewardsDiscoveryServiceStateModel.updateMany({}, { lastSafeCompleteBlock: blockNumber }, { upsert: true })
   }
 
   public async getLastSafeCompleteBlockNumber() {
@@ -496,11 +491,11 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
 
     if (eventsDiscoveryServiceState) {
       const state = eventsDiscoveryServiceState.toObject()
-      this.logger.log(`Found existing RewardsDiscoveryServiceState: [${JSON.stringify(state)}]`)
+      this.logger.log(`Found existing RewardsDiscoveryServiceState: ${state.lastSafeCompleteBlock}`)
       return state.lastSafeCompleteBlock || this.hodlerContractDeployedBlock
     } else {
-      this.logger.log(`Creating new RewardsDiscoveryServiceState: [${this.hodlerContractDeployedBlock}]`)
-      this.state = await this.rewardsDiscoveryServiceStateModel.create({ lastSafeCompleteBlock: this.hodlerContractDeployedBlock } )
+      this.logger.log(`Creating new RewardsDiscoveryServiceState: ${this.hodlerContractDeployedBlock}`)
+      await this.rewardsDiscoveryServiceStateModel.create({ lastSafeCompleteBlock: this.hodlerContractDeployedBlock } )
       return this.hodlerContractDeployedBlock
     }
   }
