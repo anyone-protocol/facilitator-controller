@@ -496,11 +496,11 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
 
     if (eventsDiscoveryServiceState) {
       const state = eventsDiscoveryServiceState.toObject()
-      this.logger.log(`Found existing EventsDiscoveryServiceState: ${state.lastSafeCompleteBlock}`)
+      this.logger.log(`Found existing RewardsDiscoveryServiceState: [${JSON.stringify(state)}]`)
       return state.lastSafeCompleteBlock || this.hodlerContractDeployedBlock
     } else {
-      this.logger.log(`Creating new RewardsDiscoveryServiceState: ${this.hodlerContractDeployedBlock}`)
-      await this.rewardsDiscoveryServiceStateModel.create({ lastSafeCompleteBlock: this.hodlerContractDeployedBlock } )
+      this.logger.log(`Creating new RewardsDiscoveryServiceState: [${this.hodlerContractDeployedBlock}]`)
+      this.state = await this.rewardsDiscoveryServiceStateModel.create({ lastSafeCompleteBlock: this.hodlerContractDeployedBlock } )
       return this.hodlerContractDeployedBlock
     }
   }
