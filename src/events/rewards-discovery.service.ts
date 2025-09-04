@@ -244,7 +244,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
           })
           newEvents++
         } catch (err) {
-          this.logger.warn(
+          this.logger.debug(
             `UpdateRewardsEvent creation race condition gracefully avoided`
           )
           knownEvents++
@@ -311,7 +311,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
           })
           newEvents++
         } catch (err) {
-          this.logger.warn(
+          this.logger.debug(
             `RewardedEvent creation race condition gracefully avoided`
           )
           knownEvents++

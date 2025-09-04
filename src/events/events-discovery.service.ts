@@ -234,7 +234,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
           })
           newEvents++
         } catch (err) {
-          this.logger.warn(
+          this.logger.debug(
             `RequestingUpdateEvent creation race condition gracefully avoided`
           )
           knownEvents++
@@ -295,7 +295,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
           })
           newEvents++
         } catch (err) {
-          this.logger.warn(
+          this.logger.debug(
             `AllocationUpdatedEvent creation race condition gracefully avoided`
           )
           knownEvents++
