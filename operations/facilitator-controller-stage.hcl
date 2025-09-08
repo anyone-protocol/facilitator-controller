@@ -28,8 +28,8 @@ job "facilitator-controller-stage" {
       kill_timeout = "30s"
 
       config {
-        # image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
-        image = "ghcr.io/anyone-protocol/facilitator-controller:589fdeec1789fc106f310ce38f54612ff7debd3d"
+        image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
+        # image = "ghcr.io/anyone-protocol/facilitator-controller:589fdeec1789fc106f310ce38f54612ff7debd3d"
         network_mode = "host"
       }
 
