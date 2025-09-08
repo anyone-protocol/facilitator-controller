@@ -29,7 +29,6 @@ job "facilitator-controller-stage" {
 
       config {
         image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
-        # image = "ghcr.io/anyone-protocol/facilitator-controller:589fdeec1789fc106f310ce38f54612ff7debd3d"
         network_mode = "host"
       }
 
@@ -92,7 +91,7 @@ job "facilitator-controller-stage" {
         TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/sepolia/stage/address" }}"
         HODLER_CONTRACT_ADDRESS="{{ key "hodler/sepolia/stage/address" }}"
         {{- range service "validator-stage-mongo" }}
-        MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-stage"
+        MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-stage2"
         {{- end }}
         {{- range service "facilitator-controller-stage-redis-master" }}
         REDIS_MASTER_NAME="{{ .Name }}"
