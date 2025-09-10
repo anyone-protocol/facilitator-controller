@@ -48,19 +48,19 @@ export class EventsService
     removeOnFail: EventsService.removeOnFail
   }
 
-  private provider: ethers.WebSocketProvider
+  private websocketProvider: ethers.WebSocketProvider
 
   private facilitatorAddress: string | undefined
   private facilityOperatorKey: string | undefined
   private facilitatorOperator: ethers.Wallet
-  private facilitatorContract: ethers.Contract
-  private facilitySignerContract: any
+  private facilitatorWebsocketContract: ethers.Contract
+  private facilitySignerContract: ethers.Contract
 
   private hodlerContractAddress: string | undefined
-  private hodlerContract: ethers.Contract
+  private hodlerWebsocketContract: ethers.Contract
   private hodlerOperatorKey: string | undefined
   private hodlerOperator: ethers.Wallet
-  private hodlerSignerContract: any
+  private hodlerSignerContract: ethers.Contract
 
   private rewardsPoolKey: string | undefined
   private rewardsPool: ethers.Wallet
@@ -170,27 +170,25 @@ export class EventsService
       await this.facilitatorUpdatesQueue.obliterate({ force: true })
     }
 
-    this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
+    this.websocketProvider = await this.evmProviderService.getCurrentWebSocketProvider(
       (async (provider) => {
-        this.provider = provider
-        if (this.useHodler == 'true') {
-          this.tokenContract = new ethers.Contract(
-            this.tokenAddress,
-            ['function approve(address spender, uint256 amount)'],
-            this.provider
-          )
-
-          await this.subscribeToHodler()
-        }
-
-        if (this.useFacility == 'true') {
-          await this.subscribeToFacilitator()
-        }
-        
+        this.websocketProvider = provider
+        if (this.useHodler == 'true') { await this.subscribeToHodler() }
+        if (this.useFacility == 'true') { await this.subscribeToFacilitator() }
       }).bind(this)
     )
 
     if (this.facilitatorAddress != undefined) {
+      this.facilitatorOperator = new ethers.Wallet(
+        this.facilityOperatorKey,
+        this.websocketProvider
+      )
+      // @ts-ignore
+      this.facilitySignerContract = new ethers.Contract(
+        this.facilitatorAddress,
+        facilitatorABI,
+        this.evmProviderService.jsonRpcProvider
+      ).connect(this.facilitatorOperator)
       this.subscribeToFacilitator().catch((error) =>
         this.logger.error('Failed subscribing to facilitator events:', error)
       )
@@ -205,9 +203,24 @@ export class EventsService
       this.tokenContract = new ethers.Contract(
         this.tokenAddress,
         ['function approve(address spender, uint256 amount)'],
-        this.provider
+        this.evmProviderService.jsonRpcProvider
       )
 
+      this.logger.log(`Connecting Hodler contract to operator wallet...`)
+      // @ts-ignore
+      this.hodlerSignerContract = new ethers.Contract(
+        this.hodlerContractAddress,
+        hodlerABI,
+        this.evmProviderService.jsonRpcProvider
+      ).connect(this.hodlerOperator)
+      this.hodlerOperator = new ethers.Wallet(
+        this.hodlerOperatorKey,
+        this.evmProviderService.jsonRpcProvider
+      )
+      this.rewardsPool = new ethers.Wallet(
+        this.rewardsPoolKey,
+        this.evmProviderService.jsonRpcProvider
+      )
       this.subscribeToHodler().catch((error) =>
         this.logger.error('Failed subscribing to hodler events:', error)
       )
@@ -316,8 +329,6 @@ export class EventsService
           this.logger.log(
             `UpdateAllocation for [${data.address}] tx: [${tx.hash}]`
           )
-          this.provider.off(tx.hash)
-          this.provider.off('block')
 
           return true
         } catch (updateError) {
@@ -429,10 +440,6 @@ export class EventsService
         'Missing FACILITY_OPERATOR_KEY. Skipping facilitator subscription'
       )
     } else {
-      this.facilitatorOperator = new ethers.Wallet(
-        this.facilityOperatorKey,
-        this.provider
-      )
       if (this.facilitatorAddress == undefined) {
         this.logger.error(
           'Missing FACILITY_CONTRACT_ADDRESS. ' +
@@ -445,19 +452,16 @@ export class EventsService
             `${this.facilitatorOperator.address}...`
         )
 
-        if (this.facilitatorContract) {
-          this.facilitatorContract.off('RequestingUpdate')
+        if (this.facilitatorWebsocketContract) {
+          this.facilitatorWebsocketContract.off('RequestingUpdate')
         }
 
-        this.facilitatorContract = new ethers.Contract(
+        this.facilitatorWebsocketContract = new ethers.Contract(
           this.facilitatorAddress,
           facilitatorABI,
-          this.provider
+          this.websocketProvider
         )
-        this.facilitySignerContract = this.facilitatorContract.connect(
-          this.facilitatorOperator
-        )
-        this.facilitatorContract.on(
+        this.facilitatorWebsocketContract.on(
           'RequestingUpdate',
           this.onRequestingUpdateEvent.bind(this)
         )
@@ -471,15 +475,6 @@ export class EventsService
         'Missing HODLER_OPERATOR_KEY. Skipping hodler subscription'
       )
     } else {
-      this.hodlerOperator = new ethers.Wallet(
-        this.hodlerOperatorKey,
-        this.provider
-      )
-      this.rewardsPool = new ethers.Wallet(
-        this.rewardsPoolKey,
-        this.provider
-      )
-
       if (this.hodlerContractAddress == undefined) {
         this.logger.error(
           'Missing HODLER_CONTRACT_ADDRESS. ' +
@@ -492,26 +487,21 @@ export class EventsService
             `rewards pool [${this.rewardsPool.address}] and ` +
             `hodler operator [${this.hodlerOperator.address}]`
         )
-
-        if (this.hodlerContract) {
+        this.logger.log(`Creating Hodler contract instance...`)
+        this.hodlerWebsocketContract = new ethers.Contract(
+          this.hodlerContractAddress,
+          hodlerABI,
+          this.websocketProvider
+        )
+        if (this.hodlerWebsocketContract) {
           this.logger.log(
             `Removing previous Hodler contract event listeners...`
           )
-          this.hodlerContract.off(HODLER_EVENTS.UpdateRewards)
+          this.hodlerWebsocketContract.off(HODLER_EVENTS.UpdateRewards)
         }
-        this.logger.log(`Creating Hodler contract instance...`)
-        this.hodlerContract = new ethers.Contract(
-          this.hodlerContractAddress,
-          hodlerABI,
-          this.provider
-        )
-        this.logger.log(`Connecting Hodler contract to operator wallet...`)
-        this.hodlerSignerContract = this.hodlerContract.connect(
-          this.hodlerOperator
-        )
         this.logger.log(`Attaching hodler UpdateRewards event listener...`)
         try {
-          await this.hodlerContract.on(
+          await this.hodlerWebsocketContract.on(
             HODLER_EVENTS.UpdateRewards,
             this.onHodlerUpdateRewards.bind(this)
           )
@@ -681,7 +671,7 @@ export class EventsService
     var rewardCost: bigint = undefined
 
     try {
-      const hodlerData = await this.hodlerContract.hodlers(hodlerAddress)
+      const hodlerData = await this.hodlerSignerContract.hodlers(hodlerAddress)
       const claimedRelayRewards = BigInt(hodlerData.claimedRelayRewards.toString())
       const claimedStakingRewards = BigInt(hodlerData.claimedStakingRewards.toString())
 
@@ -711,8 +701,8 @@ export class EventsService
           currentTotalReward
         )
         const approveTx = await approveReceipt.wait()
-        this.provider.off(approveTx.hash)
-        this.provider.off('block')
+        this.websocketProvider.off(approveTx.hash)
+        this.websocketProvider.off('block')
 
         approveCost = approveTx.gasUsed.mul(approveTx.gasPrice)
       
@@ -739,8 +729,8 @@ export class EventsService
           requestedRedeem
         )
         const tx = await receipt.wait()
-        this.provider.off(tx.hash)
-        this.provider.off('block')
+        this.websocketProvider.off(tx.hash)
+        this.websocketProvider.off('block')
 
         rewardCost = tx.gasUsed.mul(tx.gasPrice)
 
@@ -827,8 +817,8 @@ export class EventsService
           0
         )
         const approveTx = await approveReceipt.wait()
-        this.provider.off(approveTx.hash)
-        this.provider.off('block')
+        this.websocketProvider.off(approveTx.hash)
+        this.websocketProvider.off('block')
 
         approveCost += approveTx.gasUsed.mul(approveTx.gasPrice)
         this.logger.log(

@@ -43,7 +43,6 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
 
   private facilitatorAddress?: string
 
-  private provider: ethers.WebSocketProvider
   private facilitatorContract: ethers.Contract
   private facilitatorContractDeployedBlock: ethers.BlockTag
 
@@ -119,25 +118,14 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
 
     if (this.useFacility == 'true') {
       this.logger.log('Bootstrapping with Facilitator')
-      this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
-        (provider => {
-          this.provider = provider
-          this.facilitatorContract = new ethers.Contract(
-            this.facilitatorAddress,
-            facilitatorABI,
-            this.provider
-          )
-        }).bind(this)
-      )
-      this.logger.log(`Bootstraped Facilitator provider: ${this.provider}`)
       this.facilitatorContract = new ethers.Contract(
         this.facilitatorAddress,
         facilitatorABI,
-        this.provider
+        this.evmProviderService.jsonRpcProvider
       )
 
       this.logger.log(
-        `Bootstraped Facilitator contract: ${this.facilitatorContract}`
+        `Bootstraped Facilitator contract: [${this.facilitatorAddress}]`
       )
     } else {
       this.logger.log(
@@ -187,7 +175,9 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     to: ethers.BlockTag = 'latest'
   ) {
     const fromBlock = from || this.facilitatorContractDeployedBlock
-    let toBlock = to === 'latest' ? await this.provider.getBlockNumber() : to
+    let toBlock = to === 'latest'
+      ? await this.evmProviderService.jsonRpcProvider.getBlockNumber()
+      : to
     const blockQueryRange = BigNumber(toBlock).minus(fromBlock)
     if (blockQueryRange.gt(EventsDiscoveryService.MAX_BLOCK_QUERY_RANGE)) {
       this.logger.warn(
@@ -416,7 +406,9 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
 
     let currentBlock = null
     try {
-      currentBlock = await this.provider.getBlockNumber()
+      currentBlock = await this.evmProviderService
+        .jsonRpcProvider
+        .getBlockNumber()
     } catch (error) {
       this.logger.error(
         'Not queueing new discover facilitator events flow: ' +

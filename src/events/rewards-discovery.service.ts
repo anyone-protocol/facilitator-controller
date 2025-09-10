@@ -42,7 +42,6 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   private useHodler?: string
   private hodlerAddress?: string
 
-  private provider: ethers.WebSocketProvider
   private hodlerContract: ethers.Contract
   private hodlerContractDeployedBlock: ethers.BlockTag
 
@@ -122,20 +121,10 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     )
 
     if (this.useHodler == 'true') {
-      this.provider = await this.evmProviderService.getCurrentWebSocketProvider(
-        (provider => {
-          this.provider = provider
-          this.hodlerContract = new ethers.Contract(
-            this.hodlerAddress,
-            hodlerABI,
-            this.provider
-          )
-        }).bind(this)
-      )
       this.hodlerContract = new ethers.Contract(
         this.hodlerAddress,
         hodlerABI,
-        this.provider
+        this.evmProviderService.jsonRpcProvider
       )
     } else {
       this.logger.log(
@@ -194,7 +183,9 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     to: ethers.BlockTag = 'latest'
   ) {
     const fromBlock = from || this.hodlerContractDeployedBlock
-    let toBlock = to === 'latest' ? await this.provider.getBlockNumber() : to
+    let toBlock = to === 'latest'
+      ? await this.evmProviderService.jsonRpcProvider.getBlockNumber()
+      : to
     const blockQueryRange = BigNumber(toBlock).minus(fromBlock)
     if (blockQueryRange.gt(RewardsDiscoveryService.MAX_BLOCK_QUERY_RANGE)) {
       this.logger.warn(
@@ -434,7 +425,9 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
 
     let currentBlock = null
     try {
-      currentBlock = await this.provider.getBlockNumber()
+      currentBlock = await this.evmProviderService
+        .jsonRpcProvider
+        .getBlockNumber()
     } catch (error) {
       this.logger.error(
         'Not queueing new discover hodler events flow: ' +

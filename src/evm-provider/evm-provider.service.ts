@@ -12,7 +12,8 @@ import { createResilientProviders, WEBSOCKET_APP_SHUTDOWN_CUSTOM_CODE } from '..
 const DefaultEvmProviderServiceConfig = {
   EVM_NETWORK: '',
   EVM_PRIMARY_WSS: '',
-  EVM_SECONDARY_WSS: ''
+  EVM_SECONDARY_WSS: '',
+  EVM_JSONRPC: ''
 }
 const DESTROY_WEBSOCKET_INTERVAL = 5
 
@@ -35,6 +36,8 @@ export class EvmProviderService
     (provider: ethers.WebSocketProvider) => void
   )[] = []
 
+  public jsonRpcProvider: ethers.JsonRpcProvider
+
   constructor(config: ConfigService<typeof DefaultEvmProviderServiceConfig>) {
     this.config.EVM_NETWORK = config.get<string>('EVM_NETWORK', { infer: true })
     if (!this.config.EVM_NETWORK) {
@@ -52,6 +55,11 @@ export class EvmProviderService
     if (!this.config.EVM_SECONDARY_WSS) {
       throw new Error('EVM_SECONDARY_WSS is not set!')
     }
+    this.config.EVM_JSONRPC = config.get<string>('EVM_JSONRPC', { infer: true })
+    if (!this.config.EVM_JSONRPC) {
+      throw new Error('EVM_JSONRPC is not set!')
+    }
+    this.jsonRpcProvider = new ethers.JsonRpcProvider(this.config.EVM_JSONRPC)
   }
 
   onApplicationShutdown() {
