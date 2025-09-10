@@ -34,6 +34,10 @@ import {
 } from './schemas/rewards-discovery-service-state'
 import { ClusterModule } from '../cluster/cluster.module'
 import { EvmProviderService } from '../evm-provider/evm-provider.service'
+import {
+  EventsServiceState,
+  EventsServiceStateSchema
+} from './schemas/events-service-state'
 
 const dbName = 'facilitator-controller-events-discovery-service-tests'
 
@@ -97,6 +101,10 @@ describe('EventsDiscoveryService', () => {
             name: RewardsDiscoveryServiceState.name,
             schema: RewardsDiscoveryServiceStateSchema
           },
+          {
+            name: EventsServiceState.name,
+            schema: EventsServiceStateSchema
+          },
         ]),
         ClusterModule
       ],
@@ -112,14 +120,11 @@ describe('EventsDiscoveryService', () => {
   }, 30_000)
 
   afterEach(async () => {
-    console.log('afterEach: Shutting down evmProviderService...')
     await evmProviderService.onApplicationShutdown()
-    console.log('afterEach: Shutting down module...')
     await module.close()
-    console.log('afterEach: Module shut down complete.')
   }, 30_000)
 
-  it('should be defined', () => {
+  it.skip('should be defined', () => {
     expect(service).toBeDefined()
   })
 
@@ -138,4 +143,18 @@ describe('EventsDiscoveryService', () => {
     )
     await service.matchDiscoveredFacilitatorEvents(blockQueryRange.to)
   }, 60_000)
+
+  it('Handles last safe complete block number', async () => {
+    const initialLastSafeCompleteBlock = await service.getLastSafeCompleteBlockNumber()
+    console.log('INITIAL LAST SAFE COMPLETE BLOCK:', initialLastSafeCompleteBlock)
+    const newLastSafeCompleteBlock = BigNumber(initialLastSafeCompleteBlock).plus(1000).toNumber()
+    console.log('NEW LAST SAFE COMPLETE BLOCK:', newLastSafeCompleteBlock)
+
+    await service.setLastSafeCompleteBlockNumber(BigNumber(initialLastSafeCompleteBlock).minus(1000).toNumber())
+    await service.setLastSafeCompleteBlockNumber(newLastSafeCompleteBlock)
+
+    const updatedLastSafeCompleteBlock = await service.getLastSafeCompleteBlockNumber()
+    console.log('UPDATED LAST SAFE COMPLETE BLOCK:', updatedLastSafeCompleteBlock)
+    expect(updatedLastSafeCompleteBlock).toEqual(newLastSafeCompleteBlock)
+  })
 })

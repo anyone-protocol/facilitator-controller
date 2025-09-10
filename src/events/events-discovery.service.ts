@@ -5,7 +5,7 @@ import { InjectModel } from '@nestjs/mongoose'
 import { FlowProducer, Queue } from 'bullmq'
 import { ethers } from 'ethers'
 import { sortBy, uniqBy } from 'lodash'
-import { Model, Types as MongooseTypes } from 'mongoose'
+import { Model } from 'mongoose'
 import { BigNumber } from 'bignumber.js'
 
 import { FACILITATOR_EVENTS, facilitatorABI } from './abi/facilitator'
@@ -454,7 +454,7 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
     )
   }
 
-  private async setLastSafeCompleteBlockNumber(blockNumber: number) {
+  public async setLastSafeCompleteBlockNumber(blockNumber: number) {
     this.logger.log(`Setting last safe complete block number ${blockNumber}`)
 
     await this.eventsDiscoveryServiceStateModel.updateMany({}, { lastSafeCompleteBlock: blockNumber }, { upsert: true })
