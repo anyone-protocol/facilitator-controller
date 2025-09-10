@@ -461,8 +461,10 @@ export class EventsDiscoveryService implements OnApplicationBootstrap {
   }
 
   public async getLastSafeCompleteBlockNumber() {
-    const eventsDiscoveryServiceState =
-      await this.eventsDiscoveryServiceStateModel.findOne()
+    const eventsDiscoveryServiceState = await this
+      .eventsDiscoveryServiceStateModel
+      .findOne()
+      .sort({ lastSafeCompleteBlock: -1 })
 
     if (eventsDiscoveryServiceState) {
       const state = eventsDiscoveryServiceState.toObject()

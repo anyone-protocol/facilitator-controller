@@ -91,7 +91,7 @@ export class RelayRewardsService {
 
     return { address, amount }
   }
-  
+
   public async claimRewards(
     address: string
   ): Promise<ClaimedRewardsData> {

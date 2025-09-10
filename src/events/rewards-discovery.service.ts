@@ -479,8 +479,10 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   }
 
   public async getLastSafeCompleteBlockNumber() {
-    const eventsDiscoveryServiceState =
-      await this.rewardsDiscoveryServiceStateModel.findOne()
+    const eventsDiscoveryServiceState = await this
+      .rewardsDiscoveryServiceStateModel
+      .findOne()
+      .sort({ lastSafeCompleteBlock: -1 })
 
     if (eventsDiscoveryServiceState) {
       const state = eventsDiscoveryServiceState.toObject()
