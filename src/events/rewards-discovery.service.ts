@@ -334,7 +334,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
 
     if (unfulfilledUpdateRewardsEvents.length < 1) {
       this.logger.log(`No unfulfilled UpdateRewards events to match`)
-
+      await this.setLastSafeCompleteBlockNumber(BigNumber(to).toNumber())
       return
     }
 
