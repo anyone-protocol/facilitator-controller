@@ -54,13 +54,13 @@ export class EventsService
   private facilityOperatorKey: string | undefined
   private facilitatorOperator: ethers.Wallet
   private facilitatorWebsocketContract: ethers.Contract
-  private facilitySignerContract: ethers.Contract
+  private facilityContract: ethers.Contract
 
   private hodlerContractAddress: string | undefined
   private hodlerWebsocketContract: ethers.Contract
   private hodlerOperatorKey: string | undefined
   private hodlerOperator: ethers.Wallet
-  private hodlerSignerContract: ethers.Contract
+  public hodlerContract: ethers.Contract
 
   private rewardsPoolKey: string | undefined
   private rewardsPool: ethers.Wallet
@@ -183,12 +183,11 @@ export class EventsService
         this.facilityOperatorKey,
         this.websocketProvider
       )
-      // @ts-ignore
-      this.facilitySignerContract = new ethers.Contract(
+      this.facilityContract = new ethers.Contract(
         this.facilitatorAddress,
         facilitatorABI,
         this.evmProviderService.jsonRpcProvider
-      ).connect(this.facilitatorOperator)
+      )
       this.subscribeToFacilitator().catch((error) =>
         this.logger.error('Failed subscribing to facilitator events:', error)
       )
@@ -208,11 +207,11 @@ export class EventsService
 
       this.logger.log(`Connecting Hodler contract to operator wallet...`)
       // @ts-ignore
-      this.hodlerSignerContract = new ethers.Contract(
+      this.hodlerContract = new ethers.Contract(
         this.hodlerContractAddress,
         hodlerABI,
         this.evmProviderService.jsonRpcProvider
-      ).connect(this.hodlerOperator)
+      )
       this.hodlerOperator = new ethers.Wallet(
         this.hodlerOperatorKey,
         this.evmProviderService.jsonRpcProvider
@@ -311,7 +310,7 @@ export class EventsService
 
   public async updateAllocation(data: RewardAllocationData): Promise<boolean> {
     if (this.isLive === 'true') {
-      if (this.facilitySignerContract == undefined) {
+      if (this.facilityContract == undefined) {
         this.logger.error(
           'Facility signer contract not initialized, skipping allocation update'
         )
@@ -320,11 +319,14 @@ export class EventsService
           this.logger.log(
             `Updating allocation for [${data.address}] for amount [${data.amount}]`
           )
-          const receipt = await this.facilitySignerContract.updateAllocation(
-            data.address,
-            BigNumber(data.amount).toFixed(0),
-            true
-          )
+          const receipt = await this.facilityContract
+            .connect(this.facilitatorOperator)
+            // @ts-ignore
+            .updateAllocation(
+              data.address,
+              BigNumber(data.amount).toFixed(0),
+              true
+            )
           const tx = await receipt.wait()
           this.logger.log(
             `UpdateAllocation for [${data.address}] tx: [${tx.hash}]`
@@ -650,7 +652,7 @@ export class EventsService
       }
     }
 
-    if (this.hodlerSignerContract == undefined) {
+    if (this.hodlerContract == undefined) {
       this.logger.error(
         '[alarm=update-allocation-failed] Hodler signer contract not initialized, skipping claimed rewards update'
       )
@@ -671,7 +673,7 @@ export class EventsService
     var rewardCost: bigint = undefined
 
     try {
-      const hodlerData = await this.hodlerSignerContract.hodlers(hodlerAddress)
+      const hodlerData = await this.hodlerContract.hodlers(hodlerAddress)
       const claimedRelayRewards = BigInt(hodlerData.claimedRelayRewards.toString())
       const claimedStakingRewards = BigInt(hodlerData.claimedStakingRewards.toString())
 
@@ -721,13 +723,16 @@ export class EventsService
       )
 
       if (this.isLive === 'true') {
-        const receipt = await this.hodlerSignerContract.reward(
-          hodlerAddress,
-          relayRewardAllocation,
-          stakingRewardAllocation,
-          BigInt(gasEstimate),
-          requestedRedeem
-        )
+        const receipt = await this.hodlerContract
+          .connect(this.hodlerOperator)
+          // @ts-ignore
+          .reward(
+            hodlerAddress,
+            relayRewardAllocation,
+            stakingRewardAllocation,
+            BigInt(gasEstimate),
+            requestedRedeem
+          )
         const tx = await receipt.wait()
         this.websocketProvider.off(tx.hash)
         this.websocketProvider.off('block')
