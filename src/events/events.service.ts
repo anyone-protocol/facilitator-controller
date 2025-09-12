@@ -676,8 +676,9 @@ export class EventsService
 
     try {
       const network = await this.evmProviderService.jsonRpcProvider.getNetwork();
-      this.logger.log('Checking hodlers on network:', network);
+      this.logger.log(`Checking data of ${hodlerAddress} on network: ${network.name}`);
       const hodlerData = await this.hodlerContract.hodlers(hodlerAddress)
+      this.logger.log(`Found data for ${hodlerAddress}: #{hodlerData}`);
       const claimedRelayRewards = BigInt(hodlerData.claimedRelayRewards.toString())
       const claimedStakingRewards = BigInt(hodlerData.claimedStakingRewards.toString())
 
