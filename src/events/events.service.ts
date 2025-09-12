@@ -749,8 +749,6 @@ export class EventsService
         } else {
           rewardCost = 0n
         }
-        
-        rewardCost = rewardReceipt.gasUsed.mul(rewardReceipt.gasPrice)
 
         this.logger.log(
           `Rewarded [${hodlerAddress}] tx: [${rewardReceipt.hash}]`
@@ -797,7 +795,7 @@ export class EventsService
     } finally {
       if (approveCost && !rewardCost) {
         // approveCost += await this.resetApproval(hodlerAddress, totalClaimableReward)
-        this.logger.warn(
+        this.logger.debug(
           `Reward failed for ${hodlerAddress} after approval. ` +
             `Not resetting approval, as it is for the contract and will be overwritten on next reward. ` +
             `Approved cost was: ${approveCost}`
