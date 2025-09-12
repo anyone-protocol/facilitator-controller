@@ -692,16 +692,14 @@ export class EventsService
         return true
       }
 
-      const receiverAddress = (requestedRedeem)? hodlerAddress : this.hodlerContractAddress
-
-      this.logger.log(`Approving ${receiverAddress} for total ${currentTotalReward} = ` +
+      this.logger.log(`Approving for ${hodlerAddress} total ${currentTotalReward} = ` +
         `staking [${currentStakingReward}] + relay [${currentRelayReward}]...`
       )
 
       if (this.isLive === 'true') {
         // @ts-ignore
         const approveTx = await this.tokenContract.connect(this.rewardsPool).approve(
-          receiverAddress,
+          this.hodlerContractAddress,
           currentTotalReward
         )
         const approveReceipt = await approveTx.wait()
@@ -716,11 +714,11 @@ export class EventsService
         }
       
         this.logger.log(
-          `Approved ${receiverAddress} for total ${currentTotalReward} tx: [${approveReceipt.hash}] tracked cost: [${approveCost}]`
+          `Approved for ${hodlerAddress} total ${currentTotalReward} tx: [${approveReceipt.hash}] tracked cost: [${approveCost}]`
         )
       } else {
         this.logger.warn(
-          `NOT LIVE: Skipped actual approval for ${receiverAddress} of ${currentTotalReward}`
+          `NOT LIVE: Skipped actual approval for ${currentTotalReward}`
         )
       }
 
@@ -771,7 +769,8 @@ export class EventsService
         if (isWarning) {
           this.logger.error(
             `Reward of ${hodlerAddress} needs manual intervention: ` +
-              `${updateError.reason}`
+              `${updateError.reason}`,
+            updateError.stack
           )
           return false
         }
@@ -783,7 +782,8 @@ export class EventsService
           )
         } else {
           this.logger.error(
-            `Reward transaction of ${hodlerAddress} failed: ${updateError.reason}`
+            `Reward transaction of ${hodlerAddress} failed: ${updateError.reason}`,
+            updateError.stack
           )
         }
         return isPassable
@@ -796,7 +796,12 @@ export class EventsService
       }
     } finally {
       if (approveCost && !rewardCost) {
-        approveCost += await this.resetApproval(hodlerAddress, totalClaimableReward)
+        // approveCost += await this.resetApproval(hodlerAddress, totalClaimableReward)
+        this.logger.warn(
+          `Reward failed for ${hodlerAddress} after approval. ` +
+            `Not resetting approval, as it is for the contract and will be overwritten on next reward. ` +
+            `Approved cost was: ${approveCost}`
+        )
       }
       
       if (approveCost > 0 && rewardCost > 0) {
