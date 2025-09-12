@@ -663,7 +663,7 @@ export class EventsService
       return false
     }
 
-    const totalClaimableReward = stakingRewardAllocation + BigInt(relayRewardAllocation)
+    const totalClaimableReward = stakingRewardAllocation + relayRewardAllocation
     if (totalClaimableReward <= 0n) {
       this.logger.debug(`No rewards to update for ${hodlerAddress} - ${totalClaimableReward}`)
       return true
@@ -675,19 +675,16 @@ export class EventsService
     var rewardCost: bigint = undefined
 
     try {
-      const network = await this.evmProviderService.jsonRpcProvider.getNetwork();
-      this.logger.log(`Checking data of ${hodlerAddress} on network: ${network.name}`);
       const hodlerData = await this.hodlerContract.hodlers(hodlerAddress)
-      this.logger.log(`Found data for ${hodlerAddress}: #{hodlerData}`);
       const claimedRelayRewards = BigInt(hodlerData.claimedRelayRewards.toString())
       const claimedStakingRewards = BigInt(hodlerData.claimedStakingRewards.toString())
 
-      const currentRelayReward = relayRewardAllocation - BigInt(claimedRelayRewards)
-      const currentStakingReward = stakingRewardAllocation - BigInt(claimedStakingRewards)
-      const currentTotalReward = currentRelayReward + BigInt(currentStakingReward)
+      const currentRelayReward = relayRewardAllocation - claimedRelayRewards
+      const currentStakingReward = stakingRewardAllocation - claimedStakingRewards
+      const currentTotalReward = currentRelayReward + currentStakingReward
             
-      if (currentTotalReward >= 0) {
-        this.logger.debug(`No new rewards to update for ${hodlerAddress}, ` +
+      if (currentTotalReward <= 0) {
+        this.logger.log(`No new rewards to update for ${hodlerAddress}, ` +
           `current total reward: ${currentTotalReward} = ` +
           `staking [${stakingRewardAllocation}] - claimed [${claimedStakingRewards}] + ` +
           `relay [${relayRewardAllocation}] - claimed [${claimedRelayRewards}]`
