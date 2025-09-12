@@ -13,7 +13,8 @@ const DefaultEvmProviderServiceConfig = {
   EVM_NETWORK: '',
   EVM_PRIMARY_WSS: '',
   EVM_SECONDARY_WSS: '',
-  EVM_JSONRPC: ''
+  EVM_JSONRPC: '',
+  EVM_INFURA_API_KEY: ''
 }
 const DESTROY_WEBSOCKET_INTERVAL = 5
 
@@ -59,7 +60,14 @@ export class EvmProviderService
     if (!this.config.EVM_JSONRPC) {
       throw new Error('EVM_JSONRPC is not set!')
     }
-    this.jsonRpcProvider = new ethers.JsonRpcProvider(this.config.EVM_JSONRPC)
+    // this.jsonRpcProvider = new ethers.JsonRpcProvider(this.config.EVM_JSONRPC)
+    
+    this.config.EVM_INFURA_API_KEY = config.get<string>('EVM_INFURA_API_KEY', { infer: true })
+    if (!this.config.EVM_INFURA_API_KEY) {
+      throw new Error('EVM_INFURA_API_KEY is not set!')
+    }
+    this.jsonRpcProvider = new ethers.InfuraProvider(this.config.EVM_NETWORK, this.config.EVM_INFURA_API_KEY)
+    console.log("Using InfuraProvider for JSON-RPC")
   }
 
   onApplicationShutdown() {
