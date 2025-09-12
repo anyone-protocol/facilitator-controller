@@ -700,18 +700,23 @@ export class EventsService
 
       if (this.isLive === 'true') {
         // @ts-ignore
-        const approveReceipt = await this.tokenContract.connect(this.rewardsPool).approve(
+        const approveTx = await this.tokenContract.connect(this.rewardsPool).approve(
           receiverAddress,
           currentTotalReward
         )
-        const approveTx = await approveReceipt.wait()
-        this.websocketProvider.off(approveTx.hash)
+        const approveReceipt = await approveTx.wait()
+        this.websocketProvider.off(approveReceipt.hash)
         this.websocketProvider.off('block')
 
-        approveCost = approveTx.gasUsed.mul(approveTx.gasPrice)
+        if (approveReceipt) {
+          const effectiveGasPrice = approveReceipt.effectiveGasPrice || approveReceipt.gasPrice
+          approveCost = BigInt(approveReceipt.gasUsed) * BigInt(effectiveGasPrice)
+        } else {
+          approveCost = 0n
+        }
       
         this.logger.log(
-          `Approved ${receiverAddress} for total ${currentTotalReward} tx: [${approveTx.hash}] cost: [${approveCost}]`
+          `Approved ${receiverAddress} for total ${currentTotalReward} tx: [${approveReceipt.hash}] tracked cost: [${approveCost}]`
         )
       } else {
         this.logger.warn(
@@ -725,7 +730,7 @@ export class EventsService
       )
 
       if (this.isLive === 'true') {
-        const receipt = await this.hodlerContract
+        const rewardTx = await this.hodlerContract
           .connect(this.hodlerOperator)
           // @ts-ignore
           .reward(
@@ -735,14 +740,22 @@ export class EventsService
             BigInt(gasEstimate),
             requestedRedeem
           )
-        const tx = await receipt.wait()
-        this.websocketProvider.off(tx.hash)
+        const rewardReceipt = await rewardTx.wait()
+        this.websocketProvider.off(rewardReceipt.hash)
         this.websocketProvider.off('block')
 
-        rewardCost = tx.gasUsed.mul(tx.gasPrice)
+        
+        if (rewardReceipt) {
+          const effectiveGasPrice = rewardReceipt.effectiveGasPrice || rewardReceipt.gasPrice
+          rewardCost = BigInt(rewardReceipt.gasUsed) * BigInt(effectiveGasPrice)
+        } else {
+          rewardCost = 0n
+        }
+        
+        rewardCost = rewardReceipt.gasUsed.mul(rewardReceipt.gasPrice)
 
         this.logger.log(
-          `Rewarded [${hodlerAddress}] tx: [${tx.hash}]`
+          `Rewarded [${hodlerAddress}] tx: [${rewardReceipt.hash}]`
         )
       } else {
         this.logger.warn(
@@ -819,17 +832,22 @@ export class EventsService
     if (this.isLive === 'true') {
       try {
         // @ts-ignore
-        const approveReceipt = await this.tokenContract.connect(this.rewardsPool).approve(
+        const approveTx = await this.tokenContract.connect(this.rewardsPool).approve(
           this.hodlerContractAddress,
           0
         )
-        const approveTx = await approveReceipt.wait()
-        this.websocketProvider.off(approveTx.hash)
+        const approveReceipt = await approveTx.wait()
+        this.websocketProvider.off(approveReceipt.hash)
         this.websocketProvider.off('block')
 
-        approveCost += approveTx.gasUsed.mul(approveTx.gasPrice)
+
+        if (approveReceipt) {
+          const effectiveGasPrice = approveReceipt.effectiveGasPrice || approveReceipt.gasPrice
+          approveCost += BigInt(approveReceipt.gasUsed) * BigInt(effectiveGasPrice)
+        } 
+
         this.logger.log(
-          `Reset approval for ${hodlerAddress} cost: [${approveCost}] tx: [${approveTx.hash}]`
+          `Reset approval for ${hodlerAddress} total approvals cost: [${approveCost}] tx: [${approveReceipt.hash}]`
         )
       } catch (error) {
         this.logger.error(
