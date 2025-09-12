@@ -667,6 +667,8 @@ export class EventsService
     if (totalClaimableReward <= 0n) {
       this.logger.debug(`No rewards to update for ${hodlerAddress} - ${totalClaimableReward}`)
       return true
+    } else {
+      this.logger.log(`Total claimable reward for ${hodlerAddress} is ${totalClaimableReward}`)
     }
 
     var approveCost: bigint = undefined
