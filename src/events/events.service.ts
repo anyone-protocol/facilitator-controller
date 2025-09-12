@@ -675,6 +675,8 @@ export class EventsService
     var rewardCost: bigint = undefined
 
     try {
+      const network = await this.evmProviderService.jsonRpcProvider.getNetwork();
+      this.logger.log('Checking hodlers on network:', network);
       const hodlerData = await this.hodlerContract.hodlers(hodlerAddress)
       const claimedRelayRewards = BigInt(hodlerData.claimedRelayRewards.toString())
       const claimedStakingRewards = BigInt(hodlerData.claimedStakingRewards.toString())

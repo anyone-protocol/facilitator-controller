@@ -67,7 +67,6 @@ export class EvmProviderService
       throw new Error('EVM_INFURA_API_KEY is not set!')
     }
     this.jsonRpcProvider = new ethers.InfuraProvider(this.config.EVM_NETWORK, this.config.EVM_INFURA_API_KEY)
-    console.log("Using InfuraProvider for JSON-RPC")
   }
 
   onApplicationShutdown() {
