@@ -8,7 +8,7 @@ job "facilitator-controller-live" {
     value = "live-protocol"
   }
 
-  group "facilitator-controller-live-group" {
+  group "facilitator-controller-live-group" { 
     count = 2
 
     update {
@@ -25,11 +25,11 @@ job "facilitator-controller-live" {
 
     task "facilitator-controller-live-service" {
       driver = "docker"
-      kill_timeout = "60s"
+      kill_timeout = "30s"
 
       config {
-        network_mode = "host"
         image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
+        network_mode = "host"
       }
 
       env {
@@ -39,11 +39,12 @@ job "facilitator-controller-live" {
         REDIS_MODE="sentinel"
         REDIS_MASTER_NAME="facilitator-controller-live-redis-master"
         DO_CLEAN="true"
-        # FACILITY_CONTRACT_DEPLOYED_BLOCK="6844227"
+        # FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="9000000"
         CU_URL="https://cu.anyone.permaweb.services"
-        USE_HODLER="false"
-        USE_FACILITY="true"
+        USE_HODLER="true"
+        USE_FACILITY="false"
+        HODLER_CONTRACT_DEPLOYED_BLOCK="9257000"
         IS_LOCAL_LEADER="true"
         CPU_COUNT="1"
         CONSUL_HOST="${NOMAD_IP_http}"
@@ -56,22 +57,28 @@ job "facilitator-controller-live" {
       }
 
       consul {}
-      
+
       template {
         data = <<-EOH
         {{ $allocIndex := env "NOMAD_ALLOC_INDEX" }}
         {{ with secret "kv/live-protocol/facilitator-controller-live"}}
         FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY_DEPRECATED }}"
         EVM_NETWORK="{{ .Data.data.EVM_NETWORK }}"
-
+        
         EVM_JSONRPC="https://sepolia.infura.io/v3/{{ index .Data.data (print `INFURA_SEPOLIA_API_KEY_` $allocIndex) }}"
         EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print `INFURA_SEPOLIA_API_KEY_` $allocIndex) }}"
         EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_SEPOLIA_API_KEY_` $allocIndex) }}"
 
+        HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
+        REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"
+        STAKING_REWARDS_CONTROLLER_KEY="{{.Data.data.STAKING_REWARDS_CONTROLLER_KEY}}"
+
+        RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.RELAY_REWARDS_CONTROLLER_KEY}}"
+
         CONSUL_TOKEN_CONTROLLER_CLUSTER="{{.Data.data.CONSUL_TOKEN_CONTROLLER_CLUSTER}}"
         {{ end }}
         EOH
-        destination = "secrets/file.env"
+        destination = "secrets/keys.env"
         env         = true
       }
 
@@ -79,9 +86,12 @@ job "facilitator-controller-live" {
         data = <<-EOH
         VERSION="[[ .commit_sha ]]"
         RELAY_REWARDS_PROCESS_ID="{{ key "smart-contracts/live/relay-rewards-address" }}"
+        STAKING_REWARDS_PROCESS_ID="{{ key "smart-contracts/live/staking-rewards-address" }}"
         FACILITY_CONTRACT_ADDRESS="{{ key "facilitator/sepolia/live/address" }}"
+        TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/sepolia/live/address" }}"
+        HODLER_CONTRACT_ADDRESS="{{ key "hodler/sepolia/live/address" }}"
         {{- range service "validator-live-mongo" }}
-        MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-live"
+        MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-live2"
         {{- end }}
         {{- range service "facilitator-controller-live-redis-master" }}
         REDIS_MASTER_NAME="{{ .Name }}"
@@ -102,7 +112,7 @@ job "facilitator-controller-live" {
         destination = "local/config.env"
         env         = true
       }
-
+      
       resources {
         cpu    = 4096
         memory = 8192
@@ -112,9 +122,9 @@ job "facilitator-controller-live" {
         name = "facilitator-controller-live"
         port = "http"
         tags = ["logging"]
-
+        
         check {
-          name     = "Live facilitator-controller health check"
+          name     = "live facilitator-controller health check"
           type     = "http"
           path     = "/health"
           interval = "5s"
