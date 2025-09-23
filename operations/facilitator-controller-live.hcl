@@ -41,7 +41,9 @@ job "facilitator-controller-live" {
         DO_CLEAN="true"
         # FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="9000000"
-        CU_URL="https://cu.anyone.permaweb.services"
+        CU_URL="https://cu.ardrive.io"
+        # Switch back when rdy
+        # CU_URL="https://cu.anyone.permaweb.services"
         USE_HODLER="true"
         USE_FACILITY="false"
         HODLER_CONTRACT_DEPLOYED_BLOCK="9257000"
