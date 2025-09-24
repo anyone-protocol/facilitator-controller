@@ -37,7 +37,7 @@ export class HodlerUpdatesQueue extends WorkerHost {
           const address = job.data as string
           if (address != undefined) {
             this.logger.log(
-              `Fetching current rewards from distribution for ${address}`
+              `Fetching current relay rewards from distribution for ${address}`
             )
 
             return await this.relayRewards.claimRewards(address)
@@ -55,7 +55,7 @@ export class HodlerUpdatesQueue extends WorkerHost {
           const address = job.data as string
           if (address != undefined) {
             this.logger.log(
-              `Fetching current rewards from distribution for ${address}`
+              `Fetching current staking rewards from distribution for ${address}`
             )
 
             return await this.stakingRewards.claimRewards(address)

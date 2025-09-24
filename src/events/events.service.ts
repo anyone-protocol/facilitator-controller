@@ -22,6 +22,7 @@ import { RecoverRewardsData } from './dto/recover-rewards-data'
 import { EventsServiceState } from './schemas/events-service-state'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
+import { ClusterService } from 'src/cluster/cluster.service'
 
 @Injectable()
 @QueueEventsListener('facilitator-updates-queue')
@@ -92,6 +93,7 @@ export class EventsService
     public hodlerUpdatesFlow: FlowProducer,
     @InjectModel(EventsServiceState.name)
     private readonly eventsServiceState: Model<EventsServiceState>,
+    private readonly clusterService: ClusterService
   ) {
     super()
 
@@ -527,38 +529,44 @@ export class EventsService
     redeem: boolean,
     { log }: { log: ethers.EventLog }
   ) {
-    this.logger.log(
-      `Hodler UpdateRewards event for account: ${account}, ` +
-        `gasEstimate: ${gasEstimate}, redeem: ${redeem}, ` +
-        `tx: ${log.transactionHash}`
-    )
-    try {
-      let accountString: string
-      if (account instanceof Promise) {
-        accountString = await account
-      } else if (ethers.isAddressable(account)) {
-        accountString = await account.getAddress()
-      } else {
-        accountString = account
-      }
+    if (this.clusterService.isTheOne()) {
+      this.logger.log(
+        `Hodler UpdateRewards event for account: ${account}, ` +
+          `gasEstimate: ${gasEstimate}, redeem: ${redeem}, ` +
+          `tx: ${log.transactionHash}`
+      )
+      try {
+        let accountString: string
+        if (account instanceof Promise) {
+          accountString = await account
+        } else if (ethers.isAddressable(account)) {
+          accountString = await account.getAddress()
+        } else {
+          accountString = account
+        }
 
-      if (accountString != undefined) {
-        this.logger.log(`Queueing rewards update for ${accountString}`)
-        await this.enqueueUpdateRewards(
-          accountString,
-          gasEstimate.toString(),
-          redeem,
-          log.transactionHash
-        )
-      } else {
+        if (accountString != undefined) {
+          this.logger.log(`Queueing rewards update for ${accountString}`)
+          await this.enqueueUpdateRewards(
+            accountString,
+            gasEstimate.toString(),
+            redeem,
+            log.transactionHash
+          )
+        } else {
+          this.logger.error(
+            'Trying to request facility update but missing ' + 'address in data'
+          )
+        }
+      } catch (error) {
         this.logger.error(
-          'Trying to request facility update but missing ' + 'address in data'
+          `Error processing Hodler UpdateRewards event for account ${account}:`,
+          error.stack
         )
       }
-    } catch (error) {
-      this.logger.error(
-        `Error processing Hodler UpdateRewards event for account ${account}:`,
-        error.stack
+    } else {
+      this.logger.log(
+        `Skipping Hodler UpdateRewards event processing on non-leader node for ${account}`
       )
     }
   }
