@@ -235,8 +235,8 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
           })
           newEvents++
         } catch (err) {
-          this.logger.debug(
-            `UpdateRewardsEvent creation race condition gracefully avoided`
+          this.logger.error(
+            `Failed creating UpdateRewardsEvent for transactionHash ${evt.transactionHash}`, err, err.stack
           )
           knownEvents++
         }
@@ -291,20 +291,21 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
         eventName: HODLER_EVENTS.Rewarded,
         transactionHash: evt.transactionHash
       })
-      this.logger.log(`Found rewarded event in db: ${JSON.stringify(knownEvent)}`)
 
-      if (!knownEvent || !knownEvent.blockNumber) {
+      if (!knownEvent) {
         try {
           await this.rewardedEventModel.create({
             blockNumber: evt.blockNumber,
             blockHash: evt.blockHash,
             transactionHash: evt.transactionHash,
-            requestingAddress: evt.args[0]
+            requestingAddress: evt.args[0],
+            redeem: evt.args[2],
           })
+
           newEvents++
         } catch (err) {
-          this.logger.debug(
-            `RewardedEvent creation race condition gracefully avoided`
+          this.logger.error(
+            `Failed creating RewardedEvent for transactionHash ${evt.transactionHash}`, err, err.stack
           )
           knownEvents++
         }

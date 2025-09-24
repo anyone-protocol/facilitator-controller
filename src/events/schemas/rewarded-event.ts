@@ -18,9 +18,6 @@ export class RewardedEvent {
   @Prop({ type: String, required: true })
   requestingAddress: string
 
-  @Prop({ type: String, required: true })
-  gasEstimate: string
-
   @Prop({ type: Boolean, required: false, default: false })
   redeem: boolean
 }
