@@ -291,8 +291,9 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
         eventName: HODLER_EVENTS.Rewarded,
         transactionHash: evt.transactionHash
       })
+      this.logger.log(`Found rewarded event in db: ${JSON.stringify(knownEvent)}`)
 
-      if (!knownEvent) {
+      if (!knownEvent || !knownEvent.blockNumber) {
         try {
           await this.rewardedEventModel.create({
             blockNumber: evt.blockNumber,
