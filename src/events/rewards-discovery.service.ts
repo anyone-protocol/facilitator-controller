@@ -399,11 +399,17 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
 
   public async enqueueDiscoverHodlerEventsFlow(
     opts: {
-      delayJob?: number
+      delayJob: number
       skipActiveCheck?: boolean
+      jsonRpcRetryCount?: number
+      jsonRpcMaxRetries?: number
+      jsonRpcSleepMs?: number
     } = {
       delayJob: RewardsDiscoveryService.DEFAULT_DELAY,
-      skipActiveCheck: false
+      skipActiveCheck: false,
+      jsonRpcRetryCount: 0,
+      jsonRpcMaxRetries: 5,
+      jsonRpcSleepMs: 15_000 * 60 // 15 minutes
     }
   ) {
     this.logger.log(
@@ -436,7 +442,15 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
           'Failed to get current block number',
         error.stack
       )
-      return
+      this.logger.warn(
+        `Retrying enqueueDiscoverHodlerEventsFlow after delay of ${opts.jsonRpcSleepMs}ms`
+      )
+      return await new Promise(resolve => setTimeout(resolve, opts.jsonRpcSleepMs)).then(() => {
+        return this.enqueueDiscoverHodlerEventsFlow({
+          ...opts,
+          jsonRpcRetryCount: (opts.jsonRpcRetryCount || 0) + 1
+        })
+      })
     }
     this.logger.log(
       `Queueing discover hodler events flow with ` +
