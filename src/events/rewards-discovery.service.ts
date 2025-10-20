@@ -445,7 +445,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
       this.logger.warn(
         `Retrying enqueueDiscoverHodlerEventsFlow after delay of ${opts.jsonRpcSleepMs}ms`
       )
-      if (opts.jsonRpcRetryCount! >= (opts.jsonRpcMaxRetries || 5)) {
+      if ((opts.jsonRpcRetryCount || 0) >= (opts.jsonRpcMaxRetries || 5)) {
         this.logger.error(
           `Max retries reached (${opts.jsonRpcRetryCount}) for enqueueDiscoverHodlerEventsFlow, ` +
           `not retrying again`
