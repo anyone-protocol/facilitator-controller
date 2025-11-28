@@ -78,14 +78,16 @@ export class StakingRewardsService implements OnApplicationBootstrap {
 
     this.logger.debug(`Claim-Rewards response from AO for ${address}: ${result}`)
 
-    if (!result.Messages || result.Messages.length == 0 || !result.Messages[0].Data) {
+    if (!result.Messages || result.Messages.length == 0 || !result.Messages[1].Data) {
       if (result.Error && !result.Error.includes('No rewards for ')) {
         this.logger.error(`No messages in Claim-Rewards response from AO for ${address}, Response: ${JSON.stringify(result.Error)}`)
+      } else {
+        this.logger.warn(`No rewards for ${address} -> error: ${result.Error}, messages: ${JSON.stringify(result.Messages)}`)
       }
       return { address, amount: '0', kind: 'staking' }
     } else {
       var totalRewards = BigNumber(0)
-      const rewardsPerOperator = JSON.parse(result.Messages[0].Data)
+      const rewardsPerOperator = JSON.parse(result.Messages[1].Data)
       for (const operator of Object.keys(rewardsPerOperator)) {
         const amount = BigNumber(rewardsPerOperator[operator])
         totalRewards = totalRewards.plus(amount)
@@ -95,7 +97,7 @@ export class StakingRewardsService implements OnApplicationBootstrap {
 
       if (rewarded === 'NaN') {
         this.logger.warn(
-          `Undefined amount for ${address}: ${result.Messages[0].Data}`
+          `Undefined amount for ${address}: ${result.Messages[1].Data}`
         )
 
         return { address, amount: '0', kind: 'staking' }
