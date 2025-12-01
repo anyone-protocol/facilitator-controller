@@ -100,8 +100,7 @@ export class RelayRewardsService {
       signer: this.signer as any,
       tags: [
         { name: 'Action', value: 'Claim-Rewards' },
-        { name: 'Address', value: address },
-        { name: 'Timestamp', value: new Date().toISOString() }
+        { name: 'Address', value: address }
       ]
     })
 
