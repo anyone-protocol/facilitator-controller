@@ -65,9 +65,9 @@ job "facilitator-controller-live" {
         FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY_DEPRECATED }}"
         EVM_NETWORK="{{ .Data.data.EVM_NETWORK }}"
         
-        EVM_JSONRPC="https://sepolia.infura.io/v3/{{ index .Data.data (print `INFURA_SEPOLIA_API_KEY_` $allocIndex) }}"
-        EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print `INFURA_SEPOLIA_API_KEY_` $allocIndex) }}"
-        EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_SEPOLIA_API_KEY_` $allocIndex) }}"
+        EVM_JSONRPC="https://{{ .Data.data.EVM_NETWORK }}.infura.io/v3/{{ index .Data.data (print `INFURA_API_KEY_` $allocIndex) }}"
+        EVM_PRIMARY_WSS="wss://{{ .Data.data.EVM_NETWORK }}.infura.io/ws/v3/{{ index .Data.data (print `INFURA_API_KEY_` $allocIndex) }}"
+        EVM_SECONDARY_WSS="wss://eth-{{ .Data.data.EVM_NETWORK }}.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_API_KEY_` $allocIndex) }}"
 
         HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
         REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"
@@ -87,9 +87,9 @@ job "facilitator-controller-live" {
         VERSION="[[ .commit_sha ]]"
         RELAY_REWARDS_PROCESS_ID="{{ key "smart-contracts/live/relay-rewards-address" }}"
         STAKING_REWARDS_PROCESS_ID="{{ key "smart-contracts/live/staking-rewards-address" }}"
-        FACILITY_CONTRACT_ADDRESS="{{ key "facilitator/sepolia/live/address" }}"
-        TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/sepolia/live/address" }}"
-        HODLER_CONTRACT_ADDRESS="{{ key "hodler/sepolia/live/address" }}"
+        FACILITY_CONTRACT_ADDRESS="{{ key "facilitator/mainnet/live/address" }}"
+        TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/mainnet/live/address" }}"
+        HODLER_CONTRACT_ADDRESS="{{ key "hodler/mainnet/live/address" }}"
         {{- range service "validator-live-mongo" }}
         MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-live2"
         {{- end }}
