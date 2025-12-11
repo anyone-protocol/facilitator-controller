@@ -65,9 +65,9 @@ job "facilitator-controller-live" {
         FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY_DEPRECATED }}"
         EVM_NETWORK="{{ .Data.data.EVM_NETWORK }}"
         
-        EVM_JSONRPC="https://{{ .Data.data.EVM_NETWORK }}.infura.io/v3/{{ index .Data.data (print `INFURA_MAINNET_API_KEY_` $allocIndex) }}"
-        EVM_PRIMARY_WSS="wss://{{ .Data.data.EVM_NETWORK }}.infura.io/ws/v3/{{ index .Data.data (print `INFURA_MAINNET_API_KEY_` $allocIndex) }}"
-        EVM_SECONDARY_WSS="wss://eth-{{ .Data.data.EVM_NETWORK }}.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_MAINNET_API_KEY_` $allocIndex) }}"
+        EVM_JSONRPC="https://mainnet.infura.io/v3/{{ index .Data.data (print `INFURA_MAINNET_API_KEY_` $allocIndex) }}"
+        EVM_PRIMARY_WSS="wss://mainnet.infura.io/ws/v3/{{ index .Data.data (print `INFURA_MAINNET_API_KEY_` $allocIndex) }}"
+        EVM_SECONDARY_WSS="wss://eth-mainnet.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_MAINNET_API_KEY_` $allocIndex) }}"
 
         HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
         REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"
