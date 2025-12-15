@@ -90,7 +90,7 @@ job "facilitator-controller-live" {
         TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/ethereum/live/address" }}"
         HODLER_CONTRACT_ADDRESS="{{ key "hodler/ethereum/live/address" }}"
         {{- range service "validator-live-mongo" }}
-        MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-live2"
+        MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-ethereum"
         {{- end }}
         {{- range service "facilitator-controller-live-redis-master" }}
         REDIS_MASTER_NAME="{{ .Name }}"
