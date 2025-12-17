@@ -62,12 +62,11 @@ job "facilitator-controller-stage" {
         data = <<-EOH
         {{ $allocIndex := env "NOMAD_ALLOC_INDEX" }}
         {{ with secret "kv/stage-protocol/facilitator-controller-stage"}}
-        FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY_DEPRECATED }}"
         EVM_NETWORK="{{ .Data.data.EVM_NETWORK }}"
         
-        EVM_JSONRPC="https://sepolia.infura.io/v3/{{ index .Data.data (print `INFURA_SEPOLIA_API_KEY_` $allocIndex) }}"
-        EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print `INFURA_SEPOLIA_API_KEY_` $allocIndex) }}"
-        EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_SEPOLIA_API_KEY_` $allocIndex) }}"
+        EVM_JSONRPC="https://sepolia.infura.io/v3/{{ index .Data.data (print `INFURA_API_KEY_` $allocIndex) }}"
+        EVM_PRIMARY_WSS="wss://sepolia.infura.io/ws/v3/{{ index .Data.data (print `INFURA_API_KEY_` $allocIndex) }}"
+        EVM_SECONDARY_WSS="wss://eth-sepolia.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_API_KEY_` $allocIndex) }}"
 
         HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
         REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"
@@ -87,7 +86,6 @@ job "facilitator-controller-stage" {
         VERSION="[[ .commit_sha ]]"
         RELAY_REWARDS_PROCESS_ID="{{ key "smart-contracts/stage/relay-rewards-address" }}"
         STAKING_REWARDS_PROCESS_ID="{{ key "smart-contracts/stage/staking-rewards-address" }}"
-        FACILITY_CONTRACT_ADDRESS="{{ key "facilitator/sepolia/stage/address" }}"
         TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/sepolia/stage/address" }}"
         HODLER_CONTRACT_ADDRESS="{{ key "hodler/sepolia/stage/address" }}"
         {{- range service "validator-stage-mongo" }}
