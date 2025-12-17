@@ -40,7 +40,7 @@ job "facilitator-controller-live" {
         REDIS_MASTER_NAME="facilitator-controller-live-redis-master"
         DO_CLEAN="true"
         # FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
-        FACILITY_CONTRACT_DEPLOYED_BLOCK="9000000"
+        FACILITY_CONTRACT_DEPLOYED_BLOCK="24025391"
         CU_URL="https://cu.anyone.tech"
         USE_HODLER="true"
         USE_FACILITY="false"
