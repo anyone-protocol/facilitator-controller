@@ -692,7 +692,8 @@ export class EventsService
       const currentTotalReward = currentRelayReward + currentStakingReward
             
       if (currentTotalReward <= 0) {
-        this.logger.log(`No new rewards to update for ${hodlerAddress}, ` +
+        this.logger.log(
+          `No new rewards to update for ${hodlerAddress}, ` +
           `current total reward: ${currentTotalReward} = ` +
           `staking [${stakingRewardAllocation}] - claimed [${claimedStakingRewards}] + ` +
           `relay [${relayRewardAllocation}] - claimed [${claimedRelayRewards}]`
@@ -700,8 +701,10 @@ export class EventsService
         return true
       }
 
-      this.logger.log(`Approving for ${hodlerAddress} total ${currentTotalReward} = ` +
-        `staking [${currentStakingReward}] + relay [${currentRelayReward}]...`
+      this.logger.log(
+        `Approving for ${hodlerAddress} total ${currentTotalReward} = ` +
+        `staking [${stakingRewardAllocation}] - claimed [${claimedStakingRewards}] + ` +
+        `relay [${relayRewardAllocation}] - claimed [${claimedRelayRewards}]`
       )
 
       if (this.isLive === 'true') {
