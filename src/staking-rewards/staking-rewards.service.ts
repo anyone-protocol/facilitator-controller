@@ -78,15 +78,16 @@ export class StakingRewardsService implements OnApplicationBootstrap {
 
     this.logger.debug(`Claim-Rewards response from AO for ${address}: ${result}`)
 
-    if (!result.Messages || result.Messages.length == 0 || !result.Messages[1].Data) {
+    if (!result.Messages || result.Messages.length < 2 || !result.Messages[1]?.Data) {
       if (result.Error && !result.Error.includes('No rewards for ')) {
         this.logger.error(`No messages in Claim-Rewards response from AO for ${address}, Response: ${JSON.stringify(result.Error)}`)
+        return { address, amount: '0', kind: 'staking' }
       } else {
         this.logger.warn(`No rewards for ${address} -> error: ${result.Error}, messages: ${JSON.stringify(result.Messages)}`)
+        return { address, amount: '0', kind: 'staking', noReward: true }
       }
-      return { address, amount: '0', kind: 'staking' }
     } else {
-      var totalRewards = BigNumber(0)
+      let totalRewards = BigNumber(0)
       const rewardsPerOperator = JSON.parse(result.Messages[1].Data)
       for (const operator of Object.keys(rewardsPerOperator)) {
         const amount = BigNumber(rewardsPerOperator[operator])

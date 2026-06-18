@@ -29,6 +29,11 @@ export class UpdateRewardsEvent {
 
   @Prop({ type: String, required: false })
   rewardedEventTransactionHash?: string
+
+  // Set when the event was fulfilled because processing found no claimable
+  // reward (so no on-chain Rewarded event is ever emitted to match against).
+  @Prop({ type: Boolean, required: false, default: false })
+  noReward?: boolean
 }
 
 export type UpdateRewardsEventDocument =

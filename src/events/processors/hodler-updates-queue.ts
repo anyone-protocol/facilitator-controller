@@ -79,7 +79,7 @@ export class HodlerUpdatesQueue extends WorkerHost {
           if (rewardData && rewardData.length > 0) {
             this.logger.log(`Updating rewards for ${rewardData[0].address}`)
             const hasPassedUpdate = await this.events.updateClaimedRewards(
-              rewardData, updateData.gas, updateData.redeem
+              rewardData, updateData.gas, updateData.redeem, updateData.transactionHash
             )
             if (!hasPassedUpdate) {
               this.events.recoverReward(updateData, rewardData)
@@ -90,7 +90,7 @@ export class HodlerUpdatesQueue extends WorkerHost {
             this.logger.warn('Missing reward data in job data')
             return false
           }
-        } catch (e) {
+        } catch (e: any) {
           this.logger.error(
             `Exception when updating allocation. rewardData: [${rewardData}]`,
             e.stack

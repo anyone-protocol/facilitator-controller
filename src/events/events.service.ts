@@ -20,6 +20,7 @@ import { ClaimedRewardsData } from './dto/claimed-rewards-data'
 import { ClaimedConfigData } from './dto/claimed-config-data'
 import { RecoverRewardsData } from './dto/recover-rewards-data'
 import { EventsServiceState } from './schemas/events-service-state'
+import { UpdateRewardsEvent } from './schemas/update-rewards-event'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { ClusterService } from 'src/cluster/cluster.service'
@@ -93,6 +94,8 @@ export class EventsService
     public hodlerUpdatesFlow: FlowProducer,
     @InjectModel(EventsServiceState.name)
     private readonly eventsServiceState: Model<EventsServiceState>,
+    @InjectModel(UpdateRewardsEvent.name)
+    private readonly updateRewardsEventModel: Model<UpdateRewardsEvent>,
     private readonly clusterService: ClusterService
   ) {
     super()
@@ -335,7 +338,7 @@ export class EventsService
           )
 
           return true
-        } catch (updateError) {
+        } catch (updateError: any) {
           if (updateError.reason) {
             const isWarning = this.checkForInternalWarnings(updateError.reason)
             if (isWarning) {
@@ -510,7 +513,7 @@ export class EventsService
             this.onHodlerUpdateRewards.bind(this)
           )
           this.logger.log(`Successfully subscribed to Hodler events!`)
-        } catch (error) {
+        } catch (error: any) {
           this.logger.error(
             `Failed to subscribe to Hodler UpdateRewards event:`,
             error.stack
@@ -558,7 +561,7 @@ export class EventsService
             'Trying to request facility update but missing ' + 'address in data'
           )
         }
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(
           `Error processing Hodler UpdateRewards event for account ${account}:`,
           error.stack
@@ -587,7 +590,8 @@ export class EventsService
       queueName: 'hodler-updates-queue',
       data: {
         gas: gasEstimate,
-        redeem: requestedRedeem
+        redeem: requestedRedeem,
+        transactionHash
       },
       opts: {
         ...EventsService.jobOpts,
@@ -638,15 +642,54 @@ export class EventsService
     }
   }
 
-  public async updateClaimedRewards(data: ClaimedRewardsData[], gasEstimate: string, requestedRedeem: boolean): Promise<boolean> {
+  /**
+   * Marks the originating UpdateRewards event as fulfilled when processing
+   * determined there is no claimable reward. These events never produce an
+   * on-chain Rewarded event, so without this they would be re-discovered and
+   * re-enqueued indefinitely (e.g. an address that paid the claim fee but has
+   * no accrued relay/staking rewards).
+   */
+  private async markUpdateRewardsEventNoReward(
+    hodlerAddress: string,
+    transactionHash?: string
+  ) {
+    if (!transactionHash) {
+      this.logger.debug(
+        `No transactionHash to mark UpdateRewards event fulfilled (no reward)` +
+          ` for ${hodlerAddress}`
+      )
+      return
+    }
+
+    try {
+      const result = await this.updateRewardsEventModel.updateOne(
+        { transactionHash, requestingAddress: hodlerAddress, fulfilled: false },
+        { fulfilled: true, noReward: true }
+      )
+      if (result.modifiedCount > 0) {
+        this.logger.log(
+          `Marked UpdateRewards event ${transactionHash} fulfilled (no reward)` +
+            ` for ${hodlerAddress} to stop re-processing`
+        )
+      }
+    } catch (error: any) {
+      this.logger.error(
+        `Failed marking UpdateRewards event ${transactionHash} fulfilled` +
+          ` (no reward) for ${hodlerAddress}`,
+        error.stack
+      )
+    }
+  }
+
+  public async updateClaimedRewards(data: ClaimedRewardsData[], gasEstimate: string, requestedRedeem: boolean, transactionHash?: string): Promise<boolean> {
     if (data.length === 0) {
       this.logger.warn('No rewards to update')
       return true
     }
     const hodlerAddress = data[0].address
 
-    var stakingRewardAllocation = 0n
-    var relayRewardAllocation = 0n
+    let stakingRewardAllocation = 0n
+    let relayRewardAllocation = 0n
     for (const reward of data) {
       if (reward.address != hodlerAddress) {
         this.logger.warn(
@@ -674,13 +717,27 @@ export class EventsService
     const totalClaimableReward = stakingRewardAllocation + relayRewardAllocation
     if (totalClaimableReward <= 0n) {
       this.logger.debug(`No rewards to update for ${hodlerAddress} - ${totalClaimableReward}`)
+      // Only retire the originating event when every reward fetch authoritatively
+      // reported no rewards. Zero totals caused by AO/process errors, malformed
+      // responses, or exceptions are left unfulfilled so they are retried on the
+      // next discovery cycle rather than being permanently abandoned.
+      const allAuthoritativeNoReward = data.every(reward => reward.noReward === true)
+      if (allAuthoritativeNoReward) {
+        await this.markUpdateRewardsEventNoReward(hodlerAddress, transactionHash)
+      } else {
+        this.logger.warn(
+          `Not retiring UpdateRewards event for ${hodlerAddress}: zero reward` +
+            ` total but not all reward fetches authoritatively reported no` +
+            ` rewards (possible AO/process error), will retry next cycle`
+        )
+      }
       return true
     } else {
       this.logger.log(`Total claimable reward for ${hodlerAddress} is ${totalClaimableReward}`)
     }
 
-    var approveCost: bigint = undefined
-    var rewardCost: bigint = undefined
+    let approveCost: bigint = 0n
+    let rewardCost: bigint = 0n
 
     try {
       const hodlerData = await this.hodlerContract.hodlers(hodlerAddress)
@@ -772,7 +829,7 @@ export class EventsService
       }
 
       return true
-    } catch (updateError) {
+    } catch (updateError: any) {
       if (updateError.reason) {
         const isWarning = this.isRewardWarning(updateError.reason)
         if (isWarning) {
@@ -841,7 +898,7 @@ export class EventsService
     this.logger.warn(
       `Approved ${hodlerAddress} for ${totalClaimableReward} but reward failed. Trying to reset approval...`
     )
-    var approveCost: bigint = 0n
+    let approveCost: bigint = 0n
 
     if (this.isLive === 'true') {
       try {
@@ -863,7 +920,7 @@ export class EventsService
         this.logger.log(
           `Reset approval for ${hodlerAddress} total approvals cost: [${approveCost}] tx: [${approveReceipt.hash}]`
         )
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(
           `Failed to reset approval for ${hodlerAddress}:`,
           error.stack
