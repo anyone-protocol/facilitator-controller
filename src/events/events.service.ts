@@ -338,7 +338,7 @@ export class EventsService
           )
 
           return true
-        } catch (updateError) {
+        } catch (updateError: any) {
           if (updateError.reason) {
             const isWarning = this.checkForInternalWarnings(updateError.reason)
             if (isWarning) {
@@ -513,7 +513,7 @@ export class EventsService
             this.onHodlerUpdateRewards.bind(this)
           )
           this.logger.log(`Successfully subscribed to Hodler events!`)
-        } catch (error) {
+        } catch (error: any) {
           this.logger.error(
             `Failed to subscribe to Hodler UpdateRewards event:`,
             error.stack
@@ -561,7 +561,7 @@ export class EventsService
             'Trying to request facility update but missing ' + 'address in data'
           )
         }
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(
           `Error processing Hodler UpdateRewards event for account ${account}:`,
           error.stack
@@ -672,7 +672,7 @@ export class EventsService
             ` for ${hodlerAddress} to stop re-processing`
         )
       }
-    } catch (error) {
+    } catch (error: any) {
       this.logger.error(
         `Failed marking UpdateRewards event ${transactionHash} fulfilled` +
           ` (no reward) for ${hodlerAddress}`,
@@ -688,8 +688,8 @@ export class EventsService
     }
     const hodlerAddress = data[0].address
 
-    var stakingRewardAllocation = 0n
-    var relayRewardAllocation = 0n
+    let stakingRewardAllocation = 0n
+    let relayRewardAllocation = 0n
     for (const reward of data) {
       if (reward.address != hodlerAddress) {
         this.logger.warn(
@@ -717,14 +717,27 @@ export class EventsService
     const totalClaimableReward = stakingRewardAllocation + relayRewardAllocation
     if (totalClaimableReward <= 0n) {
       this.logger.debug(`No rewards to update for ${hodlerAddress} - ${totalClaimableReward}`)
-      await this.markUpdateRewardsEventNoReward(hodlerAddress, transactionHash)
+      // Only retire the originating event when every reward fetch authoritatively
+      // reported no rewards. Zero totals caused by AO/process errors, malformed
+      // responses, or exceptions are left unfulfilled so they are retried on the
+      // next discovery cycle rather than being permanently abandoned.
+      const allAuthoritativeNoReward = data.every(reward => reward.noReward === true)
+      if (allAuthoritativeNoReward) {
+        await this.markUpdateRewardsEventNoReward(hodlerAddress, transactionHash)
+      } else {
+        this.logger.warn(
+          `Not retiring UpdateRewards event for ${hodlerAddress}: zero reward` +
+            ` total but not all reward fetches authoritatively reported no` +
+            ` rewards (possible AO/process error), will retry next cycle`
+        )
+      }
       return true
     } else {
       this.logger.log(`Total claimable reward for ${hodlerAddress} is ${totalClaimableReward}`)
     }
 
-    var approveCost: bigint = undefined
-    var rewardCost: bigint = undefined
+    let approveCost: bigint = undefined
+    let rewardCost: bigint = undefined
 
     try {
       const hodlerData = await this.hodlerContract.hodlers(hodlerAddress)
@@ -816,7 +829,7 @@ export class EventsService
       }
 
       return true
-    } catch (updateError) {
+    } catch (updateError: any) {
       if (updateError.reason) {
         const isWarning = this.isRewardWarning(updateError.reason)
         if (isWarning) {
@@ -885,7 +898,7 @@ export class EventsService
     this.logger.warn(
       `Approved ${hodlerAddress} for ${totalClaimableReward} but reward failed. Trying to reset approval...`
     )
-    var approveCost: bigint = 0n
+    let approveCost: bigint = 0n
 
     if (this.isLive === 'true') {
       try {
@@ -907,7 +920,7 @@ export class EventsService
         this.logger.log(
           `Reset approval for ${hodlerAddress} total approvals cost: [${approveCost}] tx: [${approveReceipt.hash}]`
         )
-      } catch (error) {
+      } catch (error: any) {
         this.logger.error(
           `Failed to reset approval for ${hodlerAddress}:`,
           error.stack

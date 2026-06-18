@@ -90,7 +90,7 @@ export class HodlerUpdatesQueue extends WorkerHost {
             this.logger.warn('Missing reward data in job data')
             return false
           }
-        } catch (e) {
+        } catch (e: any) {
           this.logger.error(
             `Exception when updating allocation. rewardData: [${rewardData}]`,
             e.stack

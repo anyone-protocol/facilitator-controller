@@ -110,10 +110,11 @@ export class RelayRewardsService {
     if (!result.Messages || result.Messages.length == 0 || !result.Messages[1].Data) {
       if (result.Error && !result.Error.includes('No rewards for ')) {
         this.logger.error(`No messages in Claim-Rewards response from AO for ${address}, Response: ${JSON.stringify(result.Error)}`)
+        return { address, amount: '0', kind: 'relay' }
       } else {
         this.logger.warn(`No rewards for ${address} -> error: ${result.Error}, messages: ${JSON.stringify(result.Messages)}`)
+        return { address, amount: '0', kind: 'relay', noReward: true }
       }
-      return { address, amount: '0', kind: 'relay' }
     } else {
       const amount = BigNumber(JSON.parse(result.Messages[1].Data)).toFixed(0)
 
