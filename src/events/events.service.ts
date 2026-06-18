@@ -736,8 +736,8 @@ export class EventsService
       this.logger.log(`Total claimable reward for ${hodlerAddress} is ${totalClaimableReward}`)
     }
 
-    let approveCost: bigint = undefined
-    let rewardCost: bigint = undefined
+    let approveCost: bigint = 0n
+    let rewardCost: bigint = 0n
 
     try {
       const hodlerData = await this.hodlerContract.hodlers(hodlerAddress)

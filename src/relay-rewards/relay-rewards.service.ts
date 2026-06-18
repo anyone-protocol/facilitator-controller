@@ -107,7 +107,7 @@ export class RelayRewardsService {
 
     this.logger.debug(`Claim-Rewards response from AO for ${address}: ${result}`)
 
-    if (!result.Messages || result.Messages.length == 0 || !result.Messages[1].Data) {
+    if (!result.Messages || result.Messages.length < 2 || !result.Messages[1]?.Data) {
       if (result.Error && !result.Error.includes('No rewards for ')) {
         this.logger.error(`No messages in Claim-Rewards response from AO for ${address}, Response: ${JSON.stringify(result.Error)}`)
         return { address, amount: '0', kind: 'relay' }
