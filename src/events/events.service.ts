@@ -20,6 +20,7 @@ import { ClaimedRewardsData } from './dto/claimed-rewards-data'
 import { ClaimedConfigData } from './dto/claimed-config-data'
 import { RecoverRewardsData } from './dto/recover-rewards-data'
 import { EventsServiceState } from './schemas/events-service-state'
+import { UpdateRewardsEvent } from './schemas/update-rewards-event'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { ClusterService } from 'src/cluster/cluster.service'
@@ -93,6 +94,8 @@ export class EventsService
     public hodlerUpdatesFlow: FlowProducer,
     @InjectModel(EventsServiceState.name)
     private readonly eventsServiceState: Model<EventsServiceState>,
+    @InjectModel(UpdateRewardsEvent.name)
+    private readonly updateRewardsEventModel: Model<UpdateRewardsEvent>,
     private readonly clusterService: ClusterService
   ) {
     super()
@@ -587,7 +590,8 @@ export class EventsService
       queueName: 'hodler-updates-queue',
       data: {
         gas: gasEstimate,
-        redeem: requestedRedeem
+        redeem: requestedRedeem,
+        transactionHash
       },
       opts: {
         ...EventsService.jobOpts,
@@ -638,7 +642,46 @@ export class EventsService
     }
   }
 
-  public async updateClaimedRewards(data: ClaimedRewardsData[], gasEstimate: string, requestedRedeem: boolean): Promise<boolean> {
+  /**
+   * Marks the originating UpdateRewards event as fulfilled when processing
+   * determined there is no claimable reward. These events never produce an
+   * on-chain Rewarded event, so without this they would be re-discovered and
+   * re-enqueued indefinitely (e.g. an address that paid the claim fee but has
+   * no accrued relay/staking rewards).
+   */
+  private async markUpdateRewardsEventNoReward(
+    hodlerAddress: string,
+    transactionHash?: string
+  ) {
+    if (!transactionHash) {
+      this.logger.debug(
+        `No transactionHash to mark UpdateRewards event fulfilled (no reward)` +
+          ` for ${hodlerAddress}`
+      )
+      return
+    }
+
+    try {
+      const result = await this.updateRewardsEventModel.updateOne(
+        { transactionHash, requestingAddress: hodlerAddress, fulfilled: false },
+        { fulfilled: true, noReward: true }
+      )
+      if (result.modifiedCount > 0) {
+        this.logger.log(
+          `Marked UpdateRewards event ${transactionHash} fulfilled (no reward)` +
+            ` for ${hodlerAddress} to stop re-processing`
+        )
+      }
+    } catch (error) {
+      this.logger.error(
+        `Failed marking UpdateRewards event ${transactionHash} fulfilled` +
+          ` (no reward) for ${hodlerAddress}`,
+        error.stack
+      )
+    }
+  }
+
+  public async updateClaimedRewards(data: ClaimedRewardsData[], gasEstimate: string, requestedRedeem: boolean, transactionHash?: string): Promise<boolean> {
     if (data.length === 0) {
       this.logger.warn('No rewards to update')
       return true
@@ -674,6 +717,7 @@ export class EventsService
     const totalClaimableReward = stakingRewardAllocation + relayRewardAllocation
     if (totalClaimableReward <= 0n) {
       this.logger.debug(`No rewards to update for ${hodlerAddress} - ${totalClaimableReward}`)
+      await this.markUpdateRewardsEventNoReward(hodlerAddress, transactionHash)
       return true
     } else {
       this.logger.log(`Total claimable reward for ${hodlerAddress} is ${totalClaimableReward}`)

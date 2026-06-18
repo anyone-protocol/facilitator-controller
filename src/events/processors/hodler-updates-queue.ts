@@ -79,7 +79,7 @@ export class HodlerUpdatesQueue extends WorkerHost {
           if (rewardData && rewardData.length > 0) {
             this.logger.log(`Updating rewards for ${rewardData[0].address}`)
             const hasPassedUpdate = await this.events.updateClaimedRewards(
-              rewardData, updateData.gas, updateData.redeem
+              rewardData, updateData.gas, updateData.redeem, updateData.transactionHash
             )
             if (!hasPassedUpdate) {
               this.events.recoverReward(updateData, rewardData)
