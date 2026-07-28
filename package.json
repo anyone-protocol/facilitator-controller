@@ -12,7 +12,9 @@
   "overrides": {
     "multer": "^2.2.0",
     "ws": "$ws",
-    "js-yaml": "^4.2.0"
+    "js-yaml": "^4.2.0",
+    "elliptic": "^6.6.1",
+    "secp256k1": "^5.0.1"
   },
   "scripts": {
     "build": "nest build",
