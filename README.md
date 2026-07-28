@@ -159,7 +159,7 @@ The most important variables:
 | `RELAY_REWARDS_CONTROLLER_KEY` | Signing key for relay-rewards AO messages. |
 | `STAKING_REWARDS_PROCESS_ID` | AO process ID for staking rewards. |
 | `STAKING_REWARDS_CONTROLLER_KEY` | Signing key for staking-rewards AO messages. |
-| `CU_URL` | AO Compute Unit URL used by aoconnect. |
+| `HB_URL` | Our HyperBEAM node, e.g. `https://hb.anyone.tech`. No default — the service refuses to start without it. |
 
 ### MongoDB & Redis
 

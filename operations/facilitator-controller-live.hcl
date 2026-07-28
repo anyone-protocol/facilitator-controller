@@ -41,7 +41,10 @@ job "facilitator-controller-live" {
         DO_CLEAN="true"
         # FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="24025391"
-        CU_URL="https://cu.anyone.tech"
+        # Our own HyperBEAM node — replaces CU_URL (D17). The edge whitelists
+        # `/~meta@1.0` and `^/{contract-pid}`, covering both the `~process@1.0/now/...`
+        # reads and the `~process@1.0/push` writes.
+        HB_URL="https://hb.anyone.tech"
         USE_HODLER="true"
         USE_FACILITY="false"
         HODLER_CONTRACT_DEPLOYED_BLOCK="9257000"
