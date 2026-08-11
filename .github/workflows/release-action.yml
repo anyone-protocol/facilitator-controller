@@ -4,6 +4,7 @@ on:
     branches: master
     tags:
       - v*
+  workflow_dispatch:
 env:
   IMAGE_NAME: facilitator-controller
 jobs:
