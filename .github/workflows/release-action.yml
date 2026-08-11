@@ -45,20 +45,3 @@ jobs:
 
           docker tag $IMAGE_NAME $IMAGE_ID:${GITHUB_SHA}
           docker push $IMAGE_ID:${GITHUB_SHA}
-
-      - name: Deploy new version
-        env:
-          NOMAD_CACERT: operations/admin-ui-ca.crt
-          NOMAD_TOKEN: ${{ secrets.NOMAD_TOKEN_FACILITATOR_CONTROLLER_DEPLOY }}
-          NOMAD_ADDR: ${{ secrets.NOMAD_ADDR }}
-        run: |
-          curl -L https://releases.hashicorp.com/nomad/1.10.2/nomad_1.10.2_linux_amd64.zip -o nomad.zip
-          unzip nomad.zip
-
-          if grep -q "stage" deploy-vars.json; then
-            sed -i "s/\[\[ .commit_sha \]\]/${GITHUB_SHA}/g" operations/facilitator-controller-stage.hcl
-            ./nomad job run operations/facilitator-controller-stage.hcl
-          else
-            sed -i "s/\[\[ .commit_sha \]\]/${GITHUB_SHA}/g" operations/facilitator-controller-live.hcl
-            ./nomad job run operations/facilitator-controller-live.hcl
-          fi
