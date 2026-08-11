@@ -1,3 +1,8 @@
+variable "commit_sha" {
+  type        = string
+  description = "The git commit SHA to use for the runtime image tag"
+}
+
 job "facilitator-controller-live" {
   datacenters = ["ator-fin"]
   type = "service"
@@ -28,13 +33,13 @@ job "facilitator-controller-live" {
       kill_timeout = "30s"
 
       config {
-        image = "ghcr.io/anyone-protocol/facilitator-controller:[[ .commit_sha ]]"
+        image = "ghcr.io/anyone-protocol/facilitator-controller:${var.commit_sha}"
         network_mode = "host"
       }
 
       env {
         IS_LIVE="true"
-        VERSION="[[ .commit_sha ]]"
+        VERSION = var.commit_sha
         PORT="${NOMAD_PORT_http}"
         REDIS_MODE="sentinel"
         REDIS_MASTER_NAME="facilitator-controller-live-redis-master"
@@ -84,7 +89,7 @@ job "facilitator-controller-live" {
 
       template {
         data = <<-EOH
-        VERSION="[[ .commit_sha ]]"
+        VERSION = var.commit_sha
         RELAY_REWARDS_PROCESS_ID="{{ key "smart-contracts/live/relay-rewards-address" }}"
         STAKING_REWARDS_PROCESS_ID="{{ key "smart-contracts/live/staking-rewards-address" }}"
         TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/ethereum/live/address" }}"
