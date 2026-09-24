@@ -19,11 +19,11 @@ import { ClusterService } from './cluster.service'
  * Waiting for bootstrap also guarantees the worker never sees a job before the owning service
  * has built its contracts and wiped stale queues.
  */
-export abstract class LeaderGatedWorkerHost
+export abstract class LeaderOnlyWorker
   extends WorkerHost
   implements OnApplicationBootstrap
 {
-  private readonly gateLogger = new Logger(LeaderGatedWorkerHost.name)
+  private readonly gateLogger = new Logger(LeaderOnlyWorker.name)
   private started = false
 
   protected constructor(

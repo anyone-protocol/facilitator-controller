@@ -30,7 +30,7 @@ export class ClusterService
   private isTerminating: boolean = false
 
   // Fires `change` with the new isTheOne() value whenever leadership flips. Workers that must
-  // run on exactly one alloc (see LeaderGatedWorkerHost) start and stop on it.
+  // run on exactly one alloc (see LeaderOnlyWorker) start and stop on it.
   private readonly leadership = new EventEmitter()
 
   constructor(

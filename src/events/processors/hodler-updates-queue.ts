@@ -9,12 +9,12 @@ import { StakingRewardsService } from 'src/staking-rewards/staking-rewards.servi
 import { ClaimedConfigData } from '../dto/claimed-config-data'
 import { RecoverRewardsData } from '../dto/recover-rewards-data'
 import { ClusterService } from '../../cluster/cluster.service'
-import { LeaderGatedWorkerHost } from '../../cluster/leader-gated-worker.host'
+import { LeaderOnlyWorker } from '../../cluster/leader-only-worker'
 
 // Leader-only: every job here ends in transactions signed by the rewards pool and the hodler
-// operator, and one wallet cannot be driven from two processes. See LeaderGatedWorkerHost.
+// operator, and one wallet cannot be driven from two processes. See LeaderOnlyWorker.
 @Processor('hodler-updates-queue', { autorun: false })
-export class HodlerUpdatesQueue extends LeaderGatedWorkerHost {
+export class HodlerUpdatesQueue extends LeaderOnlyWorker {
   private readonly logger = new Logger(HodlerUpdatesQueue.name)
 
   public static readonly JOB_GET_RELAY_REWARDS = 'get-relay-rewards'

@@ -7,13 +7,13 @@ import {
   EventDiscoveryQueryRangeDto
 } from '../dto/event-discovery-query-range.dto'
 import { ClusterService } from '../../cluster/cluster.service'
-import { LeaderGatedWorkerHost } from '../../cluster/leader-gated-worker.host'
+import { LeaderOnlyWorker } from '../../cluster/leader-only-worker'
 
 // Leader-only, like the flows it consumes are leader-enqueued. Starting only after
 // RewardsDiscoveryService has bootstrapped means DO_CLEAN wipes any stale flow from a previous
-// deploy before the worker can see it. See LeaderGatedWorkerHost.
+// deploy before the worker can see it. See LeaderOnlyWorker.
 @Processor('discover-hodler-events-queue', { autorun: false })
-export class DiscoverHodlerEventsQueue extends LeaderGatedWorkerHost {
+export class DiscoverHodlerEventsQueue extends LeaderOnlyWorker {
   private readonly logger = new Logger(DiscoverHodlerEventsQueue.name)
 
   public static readonly JOB_DISCOVER_UPDATE_REWARDS_EVENTS =
