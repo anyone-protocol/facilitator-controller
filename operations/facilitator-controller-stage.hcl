@@ -1,6 +1,7 @@
 variable "commit_sha" {
   type        = string
   description = "The git commit SHA to use for the runtime image tag"
+  default     = "2e196c8ab0b1608819fe65db152b3b946a63a748"
 }
 
 job "facilitator-controller-stage" {
@@ -39,7 +40,7 @@ job "facilitator-controller-stage" {
 
       env {
         IS_LIVE="true"
-        VERSION = var.commit_sha
+        VERSION = "${var.commit_sha}"
         PORT="${NOMAD_PORT_http}"
         REDIS_MODE="sentinel"
         REDIS_MASTER_NAME="facilitator-controller-stage-redis-master"
