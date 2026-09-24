@@ -114,8 +114,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
           `HODLER: ${this.hodlerAddress})`
       )
 
-      // Built here, not in onApplicationBootstrap: the provider exists at construction, and a
-      // job consumed before bootstrap must never see an undefined contract.
+      // The provider exists at construction, and no job may ever see an undefined contract.
       this.hodlerContract = new ethers.Contract(
         this.hodlerAddress,
         hodlerABI,

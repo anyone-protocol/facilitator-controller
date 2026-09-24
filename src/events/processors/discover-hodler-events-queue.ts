@@ -10,8 +10,8 @@ import { ClusterService } from '../../cluster/cluster.service'
 import { LeaderGatedWorkerHost } from '../../cluster/leader-gated-worker.host'
 
 // Leader-only, like the flows it consumes are leader-enqueued. Starting only after
-// RewardsDiscoveryService has bootstrapped also means a stale flow from a previous deploy can no
-// longer be consumed before DO_CLEAN has wiped it. See LeaderGatedWorkerHost.
+// RewardsDiscoveryService has bootstrapped means DO_CLEAN wipes any stale flow from a previous
+// deploy before the worker can see it. See LeaderGatedWorkerHost.
 @Processor('discover-hodler-events-queue', { autorun: false })
 export class DiscoverHodlerEventsQueue extends LeaderGatedWorkerHost {
   private readonly logger = new Logger(DiscoverHodlerEventsQueue.name)
@@ -33,8 +33,8 @@ export class DiscoverHodlerEventsQueue extends LeaderGatedWorkerHost {
   }
 
   /**
-   * A parent's child values are null when the child threw. Destructuring that used to throw a
-   * second, unrelated TypeError; return undefined so the reason is the child's own error line.
+   * A parent's child values are null when the child threw. Return undefined so the only error
+   * line is the child's own.
    */
   private async childRange(
     job: Job

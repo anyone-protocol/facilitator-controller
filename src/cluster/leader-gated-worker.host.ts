@@ -6,11 +6,9 @@ import { ClusterService } from './cluster.service'
 /**
  * A BullMQ worker that consumes its queue only while this alloc is the cluster leader.
  *
- * Leader election used to gate only who ENQUEUES work: every alloc's worker still consumed
- * from the shared queues. For the hodler-updates queue that meant two processes signing from
- * the same two wallets, which collided on the rewards pool's nonce and could overwrite each
- * other's allowance mid-claim (live, 2026-09-24). Chain writes from one wallet are serial by
- * nature, so the right shape is one active worker and a hot standby.
+ * Chain writes from one wallet are serial by nature: a second process signing from the same
+ * wallet can only collide on nonces and overwrite the allowance an approve/reward pair depends
+ * on. So the right shape is one active worker and a hot standby.
  *
  * The subclass must be declared `@Processor(name, { autorun: false })`. This host starts the
  * worker once the alloc is leader AND the service it calls into has finished bootstrapping,
@@ -18,8 +16,8 @@ import { ClusterService } from './cluster.service'
  * in-flight job finish first, so an approve/reward pair is never abandoned half-way. On a
  * crashed leader the active job simply stalls and the new leader re-runs it.
  *
- * Starting only after bootstrap also closes the startup race where a stale job left in Redis
- * by a previous deploy was consumed before the owning service had built its contracts.
+ * Waiting for bootstrap also guarantees the worker never sees a job before the owning service
+ * has built its contracts and wiped stale queues.
  */
 export abstract class LeaderGatedWorkerHost
   extends WorkerHost

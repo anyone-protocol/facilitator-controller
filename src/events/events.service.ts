@@ -71,10 +71,9 @@ export class EventsService
   private tokenAddress: string | undefined
 
   // Bounds on the two chain writes per claim. A send that never returns, or a receipt that
-  // never arrives, used to hold the worker's only slot forever (live, 2026-09-24: three hours
-  // without a line). A timeout is a failure the recovery path retries, and every retry
-  // recomputes against on-chain claimed, so a transaction that lands late is simply seen as
-  // already paid on the next attempt.
+  // never arrives, would otherwise hold the worker's only slot forever. A timeout is a failure
+  // the recovery path retries, and every retry recomputes against on-chain claimed, so a
+  // transaction that lands late is simply seen as already paid on the next attempt.
   public static readonly DEFAULT_TX_SEND_TIMEOUT_MS = 60_000
   public static readonly DEFAULT_TX_WAIT_TIMEOUT_MS = 300_000
   private readonly txSendTimeoutMs: number
