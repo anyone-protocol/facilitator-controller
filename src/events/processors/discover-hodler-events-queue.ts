@@ -7,7 +7,7 @@ import {
   EventDiscoveryQueryRangeDto
 } from '../dto/event-discovery-query-range.dto'
 import { ClusterService } from '../../cluster/cluster.service'
-import { LeaderOnlyWorker } from '../../cluster/leader-only-worker'
+import { LeaderOnlyWorker } from '../../cluster/leader-only.worker'
 
 // Leader-only, like the flows it consumes are leader-enqueued. Starting only after
 // RewardsDiscoveryService has bootstrapped means DO_CLEAN wipes any stale flow from a previous

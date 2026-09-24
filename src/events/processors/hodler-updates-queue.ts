@@ -9,7 +9,7 @@ import { StakingRewardsService } from 'src/staking-rewards/staking-rewards.servi
 import { ClaimedConfigData } from '../dto/claimed-config-data'
 import { RecoverRewardsData } from '../dto/recover-rewards-data'
 import { ClusterService } from '../../cluster/cluster.service'
-import { LeaderOnlyWorker } from '../../cluster/leader-only-worker'
+import { LeaderOnlyWorker } from '../../cluster/leader-only.worker'
 
 // Leader-only: every job here ends in transactions signed by the rewards pool and the hodler
 // operator, and one wallet cannot be driven from two processes. See LeaderOnlyWorker.
