@@ -12,7 +12,9 @@
   "overrides": {
     "multer": "^2.2.0",
     "ws": "$ws",
-    "js-yaml": "^4.2.0"
+    "js-yaml": "^4.2.0",
+    "elliptic": "^6.6.1",
+    "secp256k1": "^5.0.1"
   },
   "scripts": {
     "build": "nest build",
@@ -29,6 +31,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@anyone-protocol/ao-client": "github:anyone-protocol/ao-client#v0.1.3",
+    "@dha-team/arbundles": "^1.0.4",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/bullmq": "^11.0.1",
     "@nestjs/common": "^11.0.1",
@@ -36,14 +40,11 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/mongoose": "^11.0.3",
     "@nestjs/platform-express": "^11.0.1",
-    "@permaweb/aoconnect": "0.0.59",
-    "arweave": "^1.15.5",
     "base64url": "^3.0.1",
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "consul": "^2.0.1",
     "ethers": "^6.13.4",
-    "geoip-lite": "^1.4.10",
     "h3-js": "^4.1.0",
     "keccak": "^3.0.4",
     "lodash": "^4.17.21",

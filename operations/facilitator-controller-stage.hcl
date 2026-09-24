@@ -1,6 +1,7 @@
 variable "commit_sha" {
   type        = string
   description = "The git commit SHA to use for the runtime image tag"
+  default     = "2e196c8ab0b1608819fe65db152b3b946a63a748"
 }
 
 job "facilitator-controller-stage" {
@@ -39,14 +40,17 @@ job "facilitator-controller-stage" {
 
       env {
         IS_LIVE="true"
-        VERSION = var.commit_sha
+        VERSION = "${var.commit_sha}"
         PORT="${NOMAD_PORT_http}"
         REDIS_MODE="sentinel"
         REDIS_MASTER_NAME="facilitator-controller-stage-redis-master"
         DO_CLEAN="true"
         # FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="9000000"
-        CU_URL="https://cu-stage.anyone.tech"
+        # Our own HyperBEAM node — replaces CU_URL (D17). The edge whitelists
+        # `/~meta@1.0` and `^/{contract-pid}`, covering both the `~process@1.0/now/...`
+        # reads and the `~process@1.0/push` writes.
+        HB_URL="https://hb-stage.anyone.tech"
         USE_HODLER="true"
         USE_FACILITY="false"
         HODLER_CONTRACT_DEPLOYED_BLOCK="9170000"
