@@ -26,6 +26,12 @@ export class StakingRewardsService implements OnApplicationBootstrap {
 
   private ao!: AoClient
 
+  private resolveReady!: () => void
+  /** Resolves once bootstrap is done: the AO client exists. */
+  public readonly ready: Promise<void> = new Promise((resolve) => {
+    this.resolveReady = resolve
+  })
+
   constructor(
     private readonly config: ConfigService<{
       IS_LIVE: string
@@ -60,6 +66,14 @@ export class StakingRewardsService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
+    try {
+      await this.bootstrap()
+    } finally {
+      this.resolveReady()
+    }
+  }
+
+  private async bootstrap() {
     // The key is optional on a non-hodler deploy. Build a read-only client without one
     // rather than refusing to start.
     this.ao = createAoClient({

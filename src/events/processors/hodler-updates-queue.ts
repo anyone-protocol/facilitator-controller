@@ -28,7 +28,10 @@ export class HodlerUpdatesQueue extends LeaderOnlyWorker {
     private readonly relayRewards: RelayRewardsService,
     private readonly stakingRewards: StakingRewardsService
   ) {
-    super(cluster, () => events.ready)
+    // Every service a job calls into must have bootstrapped before the worker starts.
+    super(cluster, () =>
+      Promise.all([events.ready, relayRewards.ready, stakingRewards.ready])
+    )
   }
 
   async process(
