@@ -8,7 +8,6 @@ import { ClaimedRewardsData } from '../dto/claimed-rewards-data'
 import { StakingRewardsService } from 'src/staking-rewards/staking-rewards.service'
 import { ClaimedConfigData } from '../dto/claimed-config-data'
 import { RecoverRewardsData } from '../dto/recover-rewards-data'
-import { ClusterService } from '../../cluster/cluster.service'
 import { LeaderOnlyWorker } from '../../cluster/leader-only.worker'
 
 // Leader-only: every job here ends in transactions signed by the rewards pool and the hodler
@@ -23,15 +22,11 @@ export class HodlerUpdatesQueue extends LeaderOnlyWorker {
   public static readonly JOB_RECOVER_UPDATE_REWARDS = 'recover-update-rewards'
 
   constructor(
-    cluster: ClusterService,
     private readonly events: EventsService,
     private readonly relayRewards: RelayRewardsService,
     private readonly stakingRewards: StakingRewardsService
   ) {
-    // Every service a job calls into must have bootstrapped before the worker starts.
-    super(cluster, () =>
-      Promise.all([events.ready, relayRewards.ready, stakingRewards.ready])
-    )
+    super()
   }
 
   async process(

@@ -1,7 +1,4 @@
 import { WorkerHost } from '@nestjs/bullmq'
-import { Logger, OnApplicationBootstrap } from '@nestjs/common'
-
-import { ClusterService } from './cluster.service'
 
 /**
  * A BullMQ worker that consumes its queue only while this alloc is the cluster leader.
@@ -10,69 +7,30 @@ import { ClusterService } from './cluster.service'
  * wallet can only collide on nonces and overwrite the allowance an approve/reward pair depends
  * on. So the right shape is one active worker and a hot standby.
  *
- * The subclass must be declared `@Processor(name, { autorun: false })`. This host starts the
- * worker once the alloc is leader AND the service it calls into has finished bootstrapping,
- * pauses it when leadership is lost, and resumes it if leadership returns. `pause()` lets the
- * in-flight job finish first, so an approve/reward pair is never abandoned half-way. On a
+ * Declare the subclass `@Processor(name, { autorun: false })`. LeaderOnlyWorkersService finds
+ * every instance and drives it from leadership once all modules have bootstrapped. `pause()`
+ * lets the in-flight job finish, so an approve/reward pair is never abandoned half-way; on a
  * crashed leader the active job simply stalls and the new leader re-runs it.
- *
- * Waiting for bootstrap also guarantees the worker never sees a job before the owning service
- * has built its contracts and wiped stale queues.
  */
-export abstract class LeaderOnlyWorker
-  extends WorkerHost
-  implements OnApplicationBootstrap
-{
-  private readonly gateLogger = new Logger(LeaderOnlyWorker.name)
+export abstract class LeaderOnlyWorker extends WorkerHost {
   private started = false
 
-  protected constructor(
-    private readonly cluster: ClusterService,
-    /** Resolves once the service this worker calls into is fully bootstrapped. */
-    private readonly ready: () => Promise<unknown>
-  ) {
-    super()
-  }
-
-  async onApplicationBootstrap(): Promise<void> {
-    this.cluster.onLeadership((leader) => {
-      void (leader ? this.activate() : this.standby())
-    })
-
-    if (this.cluster.isTheOne()) {
-      await this.activate()
-    } else {
-      this.gateLogger.log(
-        `[${this.worker.name}] not the leader, worker stays stopped`
-      )
-    }
-  }
-
-  private async activate(): Promise<void> {
-    await this.ready()
-
+  /** Start consuming, or resume if paused. Safe to call repeatedly. */
+  start(): Promise<void> {
     if (!this.started) {
       this.started = true
-      this.gateLogger.log(`[${this.worker.name}] leader, starting worker`)
-      this.worker
-        .run()
-        .catch((error) =>
-          this.gateLogger.error(
-            `[${this.worker.name}] worker stopped with error`,
-            error?.stack
-          )
-        )
-    } else if (this.worker.isPaused()) {
-      this.gateLogger.log(`[${this.worker.name}] leader again, resuming worker`)
+      // Resolves only when the worker closes; rejects if it cannot start.
+      return this.worker.run()
+    }
+    if (this.worker.isPaused()) {
       this.worker.resume()
     }
+    return Promise.resolve()
   }
 
-  private async standby(): Promise<void> {
+  /** Stop taking new jobs. The in-flight job finishes first. */
+  async pause(): Promise<void> {
     if (this.started && !this.worker.isPaused()) {
-      this.gateLogger.log(
-        `[${this.worker.name}] lost leadership, pausing worker after the in-flight job`
-      )
       await this.worker.pause()
     }
   }

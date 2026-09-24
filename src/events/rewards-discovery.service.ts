@@ -50,12 +50,6 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     lastSafeCompleteBlock?: number
   } = {}
 
-  private resolveReady!: () => void
-  /** Resolves once bootstrap is done: queues cleaned and the first flow enqueued. */
-  public readonly ready: Promise<void> = new Promise((resolve) => {
-    this.resolveReady = resolve
-  })
-
   constructor(
     private readonly config: ConfigService<{
       HODLER_CONTRACT_ADDRESS: string
@@ -113,13 +107,6 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
         `Initializing events service (IS_LIVE: ${this.isLive}, ` +
           `HODLER: ${this.hodlerAddress})`
       )
-
-      // The provider exists at construction, and no job may ever see an undefined contract.
-      this.hodlerContract = new ethers.Contract(
-        this.hodlerAddress,
-        hodlerABI,
-        this.evmProviderService.jsonRpcProvider
-      )
     } else {
       this.logger.log(
         'Skipping initialization of rewards discovery service (USE_HODLER: false)'
@@ -128,20 +115,18 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
-    try {
-      await this.bootstrap()
-    } finally {
-      this.resolveReady()
-    }
-  }
-
-  private async bootstrap() {
     this.logger.log(
       `Bootstrapping EventsDiscoveryService with ` +
         `NOMAD_ALLOC_INDEX [${this.NOMAD_ALLOC_INDEX}]`
     )
 
-    if (this.useHodler != 'true') {
+    if (this.useHodler == 'true') {
+      this.hodlerContract = new ethers.Contract(
+        this.hodlerAddress,
+        hodlerABI,
+        this.evmProviderService.jsonRpcProvider
+      )
+    } else {
       this.logger.log(
         'Skipping bootstrap of rewards discovery service (USE_HODLER: false)'
       )

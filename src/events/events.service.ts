@@ -79,12 +79,6 @@ export class EventsService
   private readonly txSendTimeoutMs: number
   private readonly txWaitTimeoutMs: number
 
-  private resolveReady!: () => void
-  /** Resolves once bootstrap is done: contracts, wallets and subscriptions are in place. */
-  public readonly ready: Promise<void> = new Promise((resolve) => {
-    this.resolveReady = resolve
-  })
-
   constructor(
     private readonly config: ConfigService<{
       FACILITY_CONTRACT_ADDRESS: string
@@ -193,14 +187,6 @@ export class EventsService
     )
   }
 
-  async onApplicationBootstrap(): Promise<void> {
-    try {
-      await this.bootstrap()
-    } finally {
-      this.resolveReady()
-    }
-  }
-
   /** Rejects with code TIMEOUT if `promise` has not settled within `ms`. */
   private withTimeout<T>(
     promise: Promise<T>,
@@ -220,7 +206,7 @@ export class EventsService
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
   }
 
-  private async bootstrap(): Promise<void> {
+  async onApplicationBootstrap(): Promise<void> {
     if (this.doClean === 'true') {
       this.logger.log(
         'Cleaning up facilitator updates queue because DO_CLEAN is true'

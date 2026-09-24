@@ -6,12 +6,11 @@ import { RewardsDiscoveryService } from '../rewards-discovery.service'
 import {
   EventDiscoveryQueryRangeDto
 } from '../dto/event-discovery-query-range.dto'
-import { ClusterService } from '../../cluster/cluster.service'
 import { LeaderOnlyWorker } from '../../cluster/leader-only.worker'
 
-// Leader-only, like the flows it consumes are leader-enqueued. Starting only after
-// RewardsDiscoveryService has bootstrapped means DO_CLEAN wipes any stale flow from a previous
-// deploy before the worker can see it. See LeaderOnlyWorker.
+// Leader-only, like the flows it consumes are leader-enqueued. Started only after every module
+// has bootstrapped, so DO_CLEAN wipes any stale flow from a previous deploy before the worker
+// can see it. See LeaderOnlyWorker.
 @Processor('discover-hodler-events-queue', { autorun: false })
 export class DiscoverHodlerEventsQueue extends LeaderOnlyWorker {
   private readonly logger = new Logger(DiscoverHodlerEventsQueue.name)
@@ -24,12 +23,10 @@ export class DiscoverHodlerEventsQueue extends LeaderOnlyWorker {
     'match-discovered-hodler-events'
 
   constructor(
-    cluster: ClusterService,
     @Inject(forwardRef(() => RewardsDiscoveryService))
     private readonly rewardsDiscoveryService: RewardsDiscoveryService
   ) {
-    // Read lazily: with forwardRef the service may not be fully constructed yet.
-    super(cluster, () => rewardsDiscoveryService.ready)
+    super()
   }
 
   /**
