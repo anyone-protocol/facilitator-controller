@@ -70,6 +70,22 @@ export class EventsService
   private tokenContract: ethers.Contract
   private tokenAddress: string | undefined
 
+  // Bounds on the two chain writes per claim. A send that never returns, or a receipt that
+  // never arrives, used to hold the worker's only slot forever (live, 2026-09-24: three hours
+  // without a line). A timeout is a failure the recovery path retries, and every retry
+  // recomputes against on-chain claimed, so a transaction that lands late is simply seen as
+  // already paid on the next attempt.
+  public static readonly DEFAULT_TX_SEND_TIMEOUT_MS = 60_000
+  public static readonly DEFAULT_TX_WAIT_TIMEOUT_MS = 300_000
+  private readonly txSendTimeoutMs: number
+  private readonly txWaitTimeoutMs: number
+
+  private resolveReady!: () => void
+  /** Resolves once bootstrap is done: contracts, wallets and subscriptions are in place. */
+  public readonly ready: Promise<void> = new Promise((resolve) => {
+    this.resolveReady = resolve
+  })
+
   constructor(
     private readonly config: ConfigService<{
       FACILITY_CONTRACT_ADDRESS: string
@@ -82,6 +98,8 @@ export class EventsService
       HODLER_OPERATOR_KEY: string
       REWARDS_POOL_KEY: string
       TOKEN_CONTRACT_ADDRESS: string
+      TX_SEND_TIMEOUT_MS: string
+      TX_WAIT_TIMEOUT_MS: string
     }>,
     private readonly evmProviderService: EvmProviderService,
     @InjectQueue('facilitator-updates-queue')
@@ -104,6 +122,15 @@ export class EventsService
     this.doClean = this.config.get<string>('DO_CLEAN', { infer: true })
     this.useHodler = this.config.get<string>('USE_HODLER', { infer: true })
     this.useFacility = this.config.get<string>('USE_FACILITY', { infer: true })
+
+    this.txSendTimeoutMs =
+      Number.parseInt(
+        this.config.get<string>('TX_SEND_TIMEOUT_MS', { infer: true }) ?? ''
+      ) || EventsService.DEFAULT_TX_SEND_TIMEOUT_MS
+    this.txWaitTimeoutMs =
+      Number.parseInt(
+        this.config.get<string>('TX_WAIT_TIMEOUT_MS', { infer: true }) ?? ''
+      ) || EventsService.DEFAULT_TX_WAIT_TIMEOUT_MS
 
     if (this.useFacility == 'true') {
       this.facilitatorAddress = this.config.get<string>(
@@ -168,6 +195,33 @@ export class EventsService
   }
 
   async onApplicationBootstrap(): Promise<void> {
+    try {
+      await this.bootstrap()
+    } finally {
+      this.resolveReady()
+    }
+  }
+
+  /** Rejects with code TIMEOUT if `promise` has not settled within `ms`. */
+  private withTimeout<T>(
+    promise: Promise<T>,
+    ms: number,
+    label: string
+  ): Promise<T> {
+    let timer: NodeJS.Timeout | undefined
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        reject(
+          Object.assign(new Error(`${label} timed out after ${ms} ms`), {
+            code: 'TIMEOUT'
+          })
+        )
+      }, ms)
+    })
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+  }
+
+  private async bootstrap(): Promise<void> {
     if (this.doClean === 'true') {
       this.logger.log(
         'Cleaning up facilitator updates queue because DO_CLEAN is true'
@@ -765,18 +819,24 @@ export class EventsService
       )
 
       if (this.isLive === 'true') {
-        // @ts-ignore
-        const approveTx = await this.tokenContract.connect(this.rewardsPool).approve(
-          this.hodlerContractAddress,
-          currentTotalReward
+        const approveSend: Promise<ethers.ContractTransactionResponse> =
+          this.tokenContract
+            .connect(this.rewardsPool)
+            // @ts-ignore
+            .approve(this.hodlerContractAddress, currentTotalReward)
+        const approveTx = await this.withTimeout(
+          approveSend,
+          this.txSendTimeoutMs,
+          `approve send for ${hodlerAddress}`
         )
-        const approveReceipt = await approveTx.wait()
+        const approveReceipt = await approveTx.wait(1, this.txWaitTimeoutMs)
         this.websocketProvider.off(approveReceipt.hash)
         this.websocketProvider.off('block')
 
         if (approveReceipt) {
-          const effectiveGasPrice = approveReceipt.effectiveGasPrice || approveReceipt.gasPrice
-          approveCost = BigInt(approveReceipt.gasUsed) * BigInt(effectiveGasPrice)
+          // ethers v6: the receipt's gasPrice IS the effective price paid.
+          approveCost =
+            BigInt(approveReceipt.gasUsed) * BigInt(approveReceipt.gasPrice)
         } else {
           approveCost = 0n
         }
@@ -796,24 +856,30 @@ export class EventsService
       )
 
       if (this.isLive === 'true') {
-        const rewardTx = await this.hodlerContract
-          .connect(this.hodlerOperator)
-          // @ts-ignore
-          .reward(
-            hodlerAddress,
-            relayRewardAllocation,
-            stakingRewardAllocation,
-            BigInt(gasEstimate),
-            requestedRedeem
-          )
-        const rewardReceipt = await rewardTx.wait()
+        const rewardSend: Promise<ethers.ContractTransactionResponse> =
+          this.hodlerContract
+            .connect(this.hodlerOperator)
+            // @ts-ignore
+            .reward(
+              hodlerAddress,
+              relayRewardAllocation,
+              stakingRewardAllocation,
+              BigInt(gasEstimate),
+              requestedRedeem
+            )
+        const rewardTx = await this.withTimeout(
+          rewardSend,
+          this.txSendTimeoutMs,
+          `reward send for ${hodlerAddress}`
+        )
+        const rewardReceipt = await rewardTx.wait(1, this.txWaitTimeoutMs)
         this.websocketProvider.off(rewardReceipt.hash)
         this.websocketProvider.off('block')
 
         
         if (rewardReceipt) {
-          const effectiveGasPrice = rewardReceipt.effectiveGasPrice || rewardReceipt.gasPrice
-          rewardCost = BigInt(rewardReceipt.gasUsed) * BigInt(effectiveGasPrice)
+          rewardCost =
+            BigInt(rewardReceipt.gasUsed) * BigInt(rewardReceipt.gasPrice)
         } else {
           rewardCost = 0n
         }

@@ -1,4 +1,4 @@
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
+import { OnWorkerEvent, Processor } from '@nestjs/bullmq'
 import { forwardRef, Inject, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
 
@@ -6,9 +6,14 @@ import { RewardsDiscoveryService } from '../rewards-discovery.service'
 import {
   EventDiscoveryQueryRangeDto
 } from '../dto/event-discovery-query-range.dto'
+import { ClusterService } from '../../cluster/cluster.service'
+import { LeaderGatedWorkerHost } from '../../cluster/leader-gated-worker.host'
 
-@Processor('discover-hodler-events-queue')
-export class DiscoverHodlerEventsQueue extends WorkerHost {
+// Leader-only, like the flows it consumes are leader-enqueued. Starting only after
+// RewardsDiscoveryService has bootstrapped also means a stale flow from a previous deploy can no
+// longer be consumed before DO_CLEAN has wiped it. See LeaderGatedWorkerHost.
+@Processor('discover-hodler-events-queue', { autorun: false })
+export class DiscoverHodlerEventsQueue extends LeaderGatedWorkerHost {
   private readonly logger = new Logger(DiscoverHodlerEventsQueue.name)
 
   public static readonly JOB_DISCOVER_UPDATE_REWARDS_EVENTS =
@@ -19,10 +24,32 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
     'match-discovered-hodler-events'
 
   constructor(
+    cluster: ClusterService,
     @Inject(forwardRef(() => RewardsDiscoveryService))
     private readonly rewardsDiscoveryService: RewardsDiscoveryService
   ) {
-    super()
+    // Read lazily: with forwardRef the service may not be fully constructed yet.
+    super(cluster, () => rewardsDiscoveryService.ready)
+  }
+
+  /**
+   * A parent's child values are null when the child threw. Destructuring that used to throw a
+   * second, unrelated TypeError; return undefined so the reason is the child's own error line.
+   */
+  private async childRange(
+    job: Job
+  ): Promise<EventDiscoveryQueryRangeDto | undefined> {
+    const flowData = await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
+    this.logger.log(
+      `[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`
+    )
+    const range = Object.values(flowData).at(0)
+    if (!range) {
+      this.logger.error(
+        `[${job.name}] child job produced no block range (it failed), skipping`
+      )
+    }
+    return range ?? undefined
   }
 
   async process(job: Job<{ currentBlock: number }, any, string>) {
@@ -51,9 +78,9 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
 
       case DiscoverHodlerEventsQueue.JOB_DISCOVER_REWARDED_EVENTS:
         try {
-          const flowData = await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
-          this.logger.log(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
-          const { from, to } = Object.values(flowData).at(0)
+          const range = await this.childRange(job)
+          if (!range) return undefined
+          const { from, to } = range
 
           await this.rewardsDiscoveryService.discoverRewardedEvents(
             from,
@@ -72,10 +99,12 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
 
       case DiscoverHodlerEventsQueue.JOB_MATCH_DISCOVERED_HODLER_EVENTS:
         try {
-          const flowData = await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
-          this.logger.log(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
-          const { to } = Object.values(flowData).at(0)
-          await this.rewardsDiscoveryService.matchDiscoveredHodlerEvents(to)
+          const range = await this.childRange(job)
+          if (range) {
+            await this.rewardsDiscoveryService.matchDiscoveredHodlerEvents(
+              range.to
+            )
+          }
         } catch (error) {
           this.logger.error(
             `Exception during job ${job.name} [${job.id}]`,

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import Consul from 'consul'
+import { EventEmitter } from 'node:events'
 import { v4 as uuidv4 } from 'uuid'
 
 @Injectable()
@@ -27,6 +28,10 @@ export class ClusterService
   private renewInterval?: NodeJS.Timeout
 
   private isTerminating: boolean = false
+
+  // Fires `change` with the new isTheOne() value whenever leadership flips. Workers that must
+  // run on exactly one alloc (see LeaderGatedWorkerHost) start and stop on it.
+  private readonly leadership = new EventEmitter()
 
   constructor(
     private readonly config: ConfigService<{
@@ -106,6 +111,11 @@ export class ClusterService
     return !!this.isLeader && isLL
   }
 
+  /** Subscribe to leadership changes. Does not fire for the initial state: read isTheOne(). */
+  public onLeadership(listener: (leader: boolean) => void): void {
+    this.leadership.on('change', listener)
+  }
+
   async onApplicationBootstrap(): Promise<void> {
     if (!this.consul) { return }
     if (!this.isLocalLeader()) {
@@ -182,11 +192,18 @@ export class ClusterService
           acquire: this.sessionId
         })
 
-        this.isLeader = result
+        // The consul client answers a failed acquire with undefined, not false. Coerce so the
+        // log and every consumer see a boolean.
+        const wasTheOne = !!this.isLeader && this.isLocalLeader()
+        this.isLeader = result === true
         this.logger.log(
           `Instance ${this.serviceId} is ` +
             `${this.isLeader ? 'now leader' : 'not leader'}`
         )
+        const isTheOne = this.isLeader && this.isLocalLeader()
+        if (isTheOne !== wasTheOne) {
+          this.leadership.emit('change', isTheOne)
+        }
       } catch (error) {
         this.logger.error('Error during leader election:', error)
       }

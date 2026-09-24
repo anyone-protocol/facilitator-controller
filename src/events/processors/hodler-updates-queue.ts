@@ -1,4 +1,4 @@
-import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq'
+import { Processor, OnWorkerEvent } from '@nestjs/bullmq'
 import { Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
 
@@ -8,9 +8,13 @@ import { ClaimedRewardsData } from '../dto/claimed-rewards-data'
 import { StakingRewardsService } from 'src/staking-rewards/staking-rewards.service'
 import { ClaimedConfigData } from '../dto/claimed-config-data'
 import { RecoverRewardsData } from '../dto/recover-rewards-data'
+import { ClusterService } from '../../cluster/cluster.service'
+import { LeaderGatedWorkerHost } from '../../cluster/leader-gated-worker.host'
 
-@Processor('hodler-updates-queue')
-export class HodlerUpdatesQueue extends WorkerHost {
+// Leader-only: every job here ends in transactions signed by the rewards pool and the hodler
+// operator, and one wallet cannot be driven from two processes. See LeaderGatedWorkerHost.
+@Processor('hodler-updates-queue', { autorun: false })
+export class HodlerUpdatesQueue extends LeaderGatedWorkerHost {
   private readonly logger = new Logger(HodlerUpdatesQueue.name)
 
   public static readonly JOB_GET_RELAY_REWARDS = 'get-relay-rewards'
@@ -19,11 +23,12 @@ export class HodlerUpdatesQueue extends WorkerHost {
   public static readonly JOB_RECOVER_UPDATE_REWARDS = 'recover-update-rewards'
 
   constructor(
+    cluster: ClusterService,
     private readonly events: EventsService,
     private readonly relayRewards: RelayRewardsService,
     private readonly stakingRewards: StakingRewardsService
   ) {
-    super()
+    super(cluster, () => events.ready)
   }
 
   async process(

@@ -50,6 +50,12 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
     lastSafeCompleteBlock?: number
   } = {}
 
+  private resolveReady!: () => void
+  /** Resolves once bootstrap is done: queues cleaned and the first flow enqueued. */
+  public readonly ready: Promise<void> = new Promise((resolve) => {
+    this.resolveReady = resolve
+  })
+
   constructor(
     private readonly config: ConfigService<{
       HODLER_CONTRACT_ADDRESS: string
@@ -107,6 +113,14 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
         `Initializing events service (IS_LIVE: ${this.isLive}, ` +
           `HODLER: ${this.hodlerAddress})`
       )
+
+      // Built here, not in onApplicationBootstrap: the provider exists at construction, and a
+      // job consumed before bootstrap must never see an undefined contract.
+      this.hodlerContract = new ethers.Contract(
+        this.hodlerAddress,
+        hodlerABI,
+        this.evmProviderService.jsonRpcProvider
+      )
     } else {
       this.logger.log(
         'Skipping initialization of rewards discovery service (USE_HODLER: false)'
@@ -115,18 +129,20 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   }
 
   async onApplicationBootstrap() {
+    try {
+      await this.bootstrap()
+    } finally {
+      this.resolveReady()
+    }
+  }
+
+  private async bootstrap() {
     this.logger.log(
       `Bootstrapping EventsDiscoveryService with ` +
         `NOMAD_ALLOC_INDEX [${this.NOMAD_ALLOC_INDEX}]`
     )
 
-    if (this.useHodler == 'true') {
-      this.hodlerContract = new ethers.Contract(
-        this.hodlerAddress,
-        hodlerABI,
-        this.evmProviderService.jsonRpcProvider
-      )
-    } else {
+    if (this.useHodler != 'true') {
       this.logger.log(
         'Skipping bootstrap of rewards discovery service (USE_HODLER: false)'
       )
@@ -496,6 +512,20 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   }
 
   private async setLastSafeCompleteBlockNumber(blockNumber: number) {
+    // A flow carries the `currentBlock` it was enqueued with. One left in Redis by a previous
+    // deploy would otherwise drag the checkpoint back to that block and re-walk the range.
+    const current = await this.rewardsDiscoveryServiceStateModel
+      .findOne({ lastSafeCompleteBlock: { $exists: true } })
+      .sort({ lastSafeCompleteBlock: -1 })
+    const currentBlock = current?.toObject().lastSafeCompleteBlock
+    if (currentBlock !== undefined && blockNumber < currentBlock) {
+      this.logger.warn(
+        `Not moving last safe complete block backwards from ${currentBlock} ` +
+          `to ${blockNumber} (stale flow)`
+      )
+      return
+    }
+
     this.logger.log(`Setting last safe complete block number ${blockNumber}`)
 
     await this.rewardsDiscoveryServiceStateModel.updateMany({}, { lastSafeCompleteBlock: blockNumber }, { upsert: true })
