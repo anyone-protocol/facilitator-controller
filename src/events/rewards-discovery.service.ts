@@ -496,6 +496,20 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
   }
 
   private async setLastSafeCompleteBlockNumber(blockNumber: number) {
+    // A flow carries the `currentBlock` it was enqueued with. One left in Redis by a previous
+    // deploy would otherwise drag the checkpoint back to that block and re-walk the range.
+    const current = await this.rewardsDiscoveryServiceStateModel
+      .findOne({ lastSafeCompleteBlock: { $exists: true } })
+      .sort({ lastSafeCompleteBlock: -1 })
+    const currentBlock = current?.toObject().lastSafeCompleteBlock
+    if (currentBlock !== undefined && blockNumber < currentBlock) {
+      this.logger.warn(
+        `Not moving last safe complete block backwards from ${currentBlock} ` +
+          `to ${blockNumber} (stale flow)`
+      )
+      return
+    }
+
     this.logger.log(`Setting last safe complete block number ${blockNumber}`)
 
     await this.rewardsDiscoveryServiceStateModel.updateMany({}, { lastSafeCompleteBlock: blockNumber }, { upsert: true })

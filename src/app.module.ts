@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq'
 import { Logger, Module } from '@nestjs/common'
 import { ConfigModule, ConfigService } from '@nestjs/config'
+import { DiscoveryModule } from '@nestjs/core'
 import { MongooseModule } from '@nestjs/mongoose'
 import { ConnectionOptions } from 'bullmq'
 
@@ -10,6 +11,7 @@ import { EventsModule } from './events/events.module'
 import { EvmProviderModule } from './evm-provider/evm-provider.module'
 import { RelayRewardsModule } from './relay-rewards/relay-rewards.module'
 import { ClusterModule } from './cluster/cluster.module'
+import { LeaderOnlyWorkersService } from './cluster/leader-only-workers.service'
 
 @Module({
   imports: [
@@ -85,9 +87,12 @@ import { ClusterModule } from './cluster/cluster.module'
     ClusterModule,
     EvmProviderModule,
     RelayRewardsModule,
-    EventsModule
+    EventsModule,
+    DiscoveryModule
   ],
   controllers: [AppController],
-  providers: [AppService]
+  // LeaderOnlyWorkersService must live in the root module: Nest bootstraps the root last, so
+  // every worker it starts finds its dependencies already bootstrapped.
+  providers: [AppService, LeaderOnlyWorkersService]
 })
 export class AppModule {}

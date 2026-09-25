@@ -1,4 +1,4 @@
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq'
+import { OnWorkerEvent, Processor } from '@nestjs/bullmq'
 import { forwardRef, Inject, Logger } from '@nestjs/common'
 import { Job } from 'bullmq'
 
@@ -6,9 +6,13 @@ import { RewardsDiscoveryService } from '../rewards-discovery.service'
 import {
   EventDiscoveryQueryRangeDto
 } from '../dto/event-discovery-query-range.dto'
+import { LeaderOnlyWorker } from '../../cluster/leader-only.worker'
 
-@Processor('discover-hodler-events-queue')
-export class DiscoverHodlerEventsQueue extends WorkerHost {
+// Leader-only, like the flows it consumes are leader-enqueued. Started only after every module
+// has bootstrapped, so DO_CLEAN wipes any stale flow from a previous deploy before the worker
+// can see it. See LeaderOnlyWorker.
+@Processor('discover-hodler-events-queue', { autorun: false })
+export class DiscoverHodlerEventsQueue extends LeaderOnlyWorker {
   private readonly logger = new Logger(DiscoverHodlerEventsQueue.name)
 
   public static readonly JOB_DISCOVER_UPDATE_REWARDS_EVENTS =
@@ -23,6 +27,26 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
     private readonly rewardsDiscoveryService: RewardsDiscoveryService
   ) {
     super()
+  }
+
+  /**
+   * A parent's child values are null when the child threw. Return undefined so the only error
+   * line is the child's own.
+   */
+  private async childRange(
+    job: Job
+  ): Promise<EventDiscoveryQueryRangeDto | undefined> {
+    const flowData = await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
+    this.logger.log(
+      `[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`
+    )
+    const range = Object.values(flowData).at(0)
+    if (!range) {
+      this.logger.error(
+        `[${job.name}] child job produced no block range (it failed), skipping`
+      )
+    }
+    return range ?? undefined
   }
 
   async process(job: Job<{ currentBlock: number }, any, string>) {
@@ -51,9 +75,9 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
 
       case DiscoverHodlerEventsQueue.JOB_DISCOVER_REWARDED_EVENTS:
         try {
-          const flowData = await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
-          this.logger.log(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
-          const { from, to } = Object.values(flowData).at(0)
+          const range = await this.childRange(job)
+          if (!range) return undefined
+          const { from, to } = range
 
           await this.rewardsDiscoveryService.discoverRewardedEvents(
             from,
@@ -72,10 +96,12 @@ export class DiscoverHodlerEventsQueue extends WorkerHost {
 
       case DiscoverHodlerEventsQueue.JOB_MATCH_DISCOVERED_HODLER_EVENTS:
         try {
-          const flowData = await job.getChildrenValues<EventDiscoveryQueryRangeDto>()
-          this.logger.log(`[${job.name}] Dequeueing flow data: ${JSON.stringify(flowData)}`)
-          const { to } = Object.values(flowData).at(0)
-          await this.rewardsDiscoveryService.matchDiscoveredHodlerEvents(to)
+          const range = await this.childRange(job)
+          if (range) {
+            await this.rewardsDiscoveryService.matchDiscoveredHodlerEvents(
+              range.to
+            )
+          }
         } catch (error) {
           this.logger.error(
             `Exception during job ${job.name} [${job.id}]`,
