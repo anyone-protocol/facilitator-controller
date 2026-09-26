@@ -1,7 +1,7 @@
 variable "commit_sha" {
   type        = string
   description = "The git commit SHA to use for the runtime image tag"
-  default     = "2e196c8ab0b1608819fe65db152b3b946a63a748"
+  default     = "a42349617a247ff3f51619fd945f5a48e2771053"
 }
 
 job "facilitator-controller-stage" {
@@ -92,7 +92,6 @@ job "facilitator-controller-stage" {
 
       template {
         data = <<-EOH
-        VERSION = var.commit_sha
         RELAY_REWARDS_PROCESS_ID="{{ key "smart-contracts/stage/relay-rewards-address" }}"
         STAKING_REWARDS_PROCESS_ID="{{ key "smart-contracts/stage/staking-rewards-address" }}"
         TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/sepolia/stage/address" }}"

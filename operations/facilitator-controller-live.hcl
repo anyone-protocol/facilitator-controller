@@ -1,7 +1,7 @@
 variable "commit_sha" {
   type        = string
   description = "The git commit SHA to use for the runtime image tag"
-  default     = "2e196c8ab0b1608819fe65db152b3b946a63a748"
+  default     = "a42349617a247ff3f51619fd945f5a48e2771053"
 }
 
 job "facilitator-controller-live" {
@@ -75,9 +75,12 @@ job "facilitator-controller-live" {
         FACILITY_OPERATOR_KEY="{{ .Data.data.FACILITY_OPERATOR_KEY_DEPRECATED }}"
         EVM_NETWORK="{{ .Data.data.EVM_NETWORK }}"
         
-        EVM_JSONRPC="https://mainnet.infura.io/v3/{{ index .Data.data (print `INFURA_API_KEY_` $allocIndex) }}"
+        # EVM_JSONRPC="https://mainnet.infura.io/v3/{{ index .Data.data (print `INFURA_API_KEY_` $allocIndex) }}"
         EVM_PRIMARY_WSS="wss://mainnet.infura.io/ws/v3/{{ index .Data.data (print `INFURA_API_KEY_` $allocIndex) }}"
         EVM_SECONDARY_WSS="wss://eth-mainnet.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_API_KEY_` $allocIndex) }}"
+        EVM_JSONRPC="https://eth-mainnet.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_API_KEY_` $allocIndex) }}"
+        # EVM_PRIMARY_WSS="wss://eth-mainnet.g.alchemy.com/v2/{{ index .Data.data (print `ALCHEMY_API_KEY_` $allocIndex) }}"
+        # EVM_SECONDARY_WSS="wss://mainnet.infura.io/ws/v3/{{ index .Data.data (print `INFURA_API_KEY_` $allocIndex) }}"
 
         HODLER_OPERATOR_KEY="{{.Data.data.HODLER_OPERATOR_KEY}}"
         REWARDS_POOL_KEY="{{.Data.data.REWARDS_POOL_KEY}}"
@@ -94,7 +97,6 @@ job "facilitator-controller-live" {
 
       template {
         data = <<-EOH
-        VERSION = var.commit_sha
         RELAY_REWARDS_PROCESS_ID="{{ key "smart-contracts/live/relay-rewards-address" }}"
         STAKING_REWARDS_PROCESS_ID="{{ key "smart-contracts/live/staking-rewards-address" }}"
         TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/ethereum/live/address" }}"
