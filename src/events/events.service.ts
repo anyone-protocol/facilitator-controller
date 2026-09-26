@@ -79,6 +79,13 @@ export class EventsService
   private readonly txSendTimeoutMs: number
   private readonly txWaitTimeoutMs: number
 
+  // A node's suggested priority fee can be zero on a quiet network, and ethers signs whatever
+  // it is given. A zero tip is refused by geth pools and left unmined by the rest, so every
+  // hodler-path send floors it. The default is what ethers itself uses when a node has no
+  // suggestion at all.
+  public static readonly DEFAULT_MIN_PRIORITY_FEE_GWEI = '1'
+  private readonly minPriorityFeePerGas: bigint
+
   constructor(
     private readonly config: ConfigService<{
       FACILITY_CONTRACT_ADDRESS: string
@@ -93,6 +100,7 @@ export class EventsService
       TOKEN_CONTRACT_ADDRESS: string
       TX_SEND_TIMEOUT_MS: string
       TX_WAIT_TIMEOUT_MS: string
+      MIN_PRIORITY_FEE_GWEI: string
     }>,
     private readonly evmProviderService: EvmProviderService,
     @InjectQueue('facilitator-updates-queue')
@@ -124,6 +132,11 @@ export class EventsService
       Number.parseInt(
         this.config.get<string>('TX_WAIT_TIMEOUT_MS', { infer: true }) ?? ''
       ) || EventsService.DEFAULT_TX_WAIT_TIMEOUT_MS
+    this.minPriorityFeePerGas = ethers.parseUnits(
+      this.config.get<string>('MIN_PRIORITY_FEE_GWEI', { infer: true }) ||
+        EventsService.DEFAULT_MIN_PRIORITY_FEE_GWEI,
+      'gwei'
+    )
 
     if (this.useFacility == 'true') {
       this.facilitatorAddress = this.config.get<string>(
@@ -204,6 +217,33 @@ export class EventsService
       }, ms)
     })
     return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
+  }
+
+  /**
+   * EIP-1559 overrides for a hodler-path send: the node's suggestion with the priority fee
+   * floored at MIN_PRIORITY_FEE_GWEI. The cap moves up by the same amount so it still covers
+   * twice the base fee plus the tip, which is how ethers prices it.
+   */
+  private async feeOverrides(): Promise<ethers.Overrides> {
+    const fees = await this.evmProviderService.jsonRpcProvider.getFeeData()
+    if (fees.maxFeePerGas == null || fees.maxPriorityFeePerGas == null) {
+      return {}
+    }
+    if (fees.maxPriorityFeePerGas >= this.minPriorityFeePerGas) {
+      return {
+        maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+        maxFeePerGas: fees.maxFeePerGas
+      }
+    }
+    const raise = this.minPriorityFeePerGas - fees.maxPriorityFeePerGas
+    this.logger.log(
+      `Priority fee floored: node suggested ${fees.maxPriorityFeePerGas} wei, ` +
+        `using ${this.minPriorityFeePerGas} wei`
+    )
+    return {
+      maxPriorityFeePerGas: this.minPriorityFeePerGas,
+      maxFeePerGas: fees.maxFeePerGas + raise
+    }
   }
 
   async onApplicationBootstrap(): Promise<void> {
@@ -817,10 +857,12 @@ export class EventsService
 
       if (this.isLive === 'true') {
         const approveSend: Promise<ethers.ContractTransactionResponse> =
-          this.tokenContract
-            .connect(this.rewardsPool)
-            // @ts-ignore
-            .approve(this.hodlerContractAddress, currentTotalReward)
+          this.feeOverrides().then((fees) =>
+            this.tokenContract
+              .connect(this.rewardsPool)
+              // @ts-ignore
+              .approve(this.hodlerContractAddress, currentTotalReward, fees)
+          )
         const approveTx = await this.withTimeout(
           approveSend,
           this.txSendTimeoutMs,
@@ -854,16 +896,19 @@ export class EventsService
 
       if (this.isLive === 'true') {
         const rewardSend: Promise<ethers.ContractTransactionResponse> =
-          this.hodlerContract
-            .connect(this.hodlerOperator)
-            // @ts-ignore
-            .reward(
-              hodlerAddress,
-              relayRewardAllocation,
-              stakingRewardAllocation,
-              BigInt(gasEstimate),
-              requestedRedeem
-            )
+          this.feeOverrides().then((fees) =>
+            this.hodlerContract
+              .connect(this.hodlerOperator)
+              // @ts-ignore
+              .reward(
+                hodlerAddress,
+                relayRewardAllocation,
+                stakingRewardAllocation,
+                BigInt(gasEstimate),
+                requestedRedeem,
+                fees
+              )
+          )
         const rewardTx = await this.withTimeout(
           rewardSend,
           this.txSendTimeoutMs,
@@ -968,7 +1013,8 @@ export class EventsService
         // @ts-ignore
         const approveTx = await this.tokenContract.connect(this.rewardsPool).approve(
           this.hodlerContractAddress,
-          0
+          0,
+          await this.feeOverrides()
         )
         const approveReceipt = await approveTx.wait()
         this.websocketProvider.off(approveReceipt.hash)
