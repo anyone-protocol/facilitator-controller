@@ -212,6 +212,17 @@ export class EventsService
         'Cleaning up facilitator updates queue because DO_CLEAN is true'
       )
       await this.facilitatorUpdatesQueue.obliterate({ force: true })
+
+      // Every job in the hodler updates queue is rebuilt from Mongo and the chain by the next
+      // discovery cycle, so the leader can drop the whole queue on a clean start. A claim flow
+      // whose parent can no longer finish is otherwise permanent: each cycle re-creates its
+      // children under the same id and the parent never runs again.
+      if (this.clusterService.isTheOne()) {
+        this.logger.log(
+          'Cleaning up hodler updates queue because DO_CLEAN is true'
+        )
+        await this.hodlerUpdatesQueue.obliterate({ force: true })
+      }
     }
 
     this.websocketProvider = await this.evmProviderService.getCurrentWebSocketProvider(
