@@ -207,11 +207,23 @@ export class EventsService
   }
 
   async onApplicationBootstrap(): Promise<void> {
-    if (this.doClean === 'true') {
+    // Only the leader cleans, so a standby coming up never wipes the leader's in-flight work.
+    // ClusterService settles leadership in its own bootstrap hook, and Nest runs that module's
+    // hooks to completion before this one's.
+    if (this.doClean === 'true' && this.clusterService.isTheOne()) {
       this.logger.log(
         'Cleaning up facilitator updates queue because DO_CLEAN is true'
       )
       await this.facilitatorUpdatesQueue.obliterate({ force: true })
+
+      // Every job in the hodler updates queue is rebuilt from Mongo and the chain by the next
+      // discovery cycle, so dropping the whole queue on a clean start is safe. A claim flow
+      // whose parent can no longer finish is otherwise permanent: each cycle re-creates its
+      // children under the same id and the parent never runs again.
+      this.logger.log(
+        'Cleaning up hodler updates queue because DO_CLEAN is true'
+      )
+      await this.hodlerUpdatesQueue.obliterate({ force: true })
     }
 
     this.websocketProvider = await this.evmProviderService.getCurrentWebSocketProvider(
