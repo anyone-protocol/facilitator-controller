@@ -10,9 +10,9 @@
   "private": false,
   "license": "AGPL-3.0-only",
   "overrides": {
-    "multer": "^2.2.0",
+    "multer": "^2.4.0",
     "ws": "$ws",
-    "js-yaml": "^4.2.0",
+    "js-yaml": "^4.3.2",
     "elliptic": "^6.6.1",
     "secp256k1": "^5.0.1"
   },
