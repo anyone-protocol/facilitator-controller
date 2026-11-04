@@ -14,7 +14,8 @@
     "ws": "$ws",
     "js-yaml": "^4.2.0",
     "elliptic": "^6.6.1",
-    "secp256k1": "^5.0.1"
+    "secp256k1": "^5.0.1",
+    "uuid": "^11.1.1"
   },
   "scripts": {
     "build": "nest build",
@@ -31,7 +32,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@anyone-protocol/ao-client": "github:anyone-protocol/ao-client#v0.1.3",
+    "@anyone-protocol/ao-client": "github:anyone-protocol/ao-client#v0.1.4",
     "@dha-team/arbundles": "^1.0.4",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/bullmq": "^11.0.1",
