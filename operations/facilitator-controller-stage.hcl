@@ -47,10 +47,6 @@ job "facilitator-controller-stage" {
         DO_CLEAN="true"
         # FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="9000000"
-        # Our own HyperBEAM node — replaces CU_URL (D17). The edge whitelists
-        # `/~meta@1.0` and `^/{contract-pid}`, covering both the `~process@1.0/now/...`
-        # reads and the `~process@1.0/push` writes.
-        HB_URL="https://hb-stage.anyone.tech"
         USE_HODLER="true"
         USE_FACILITY="false"
         HODLER_CONTRACT_DEPLOYED_BLOCK="9170000"
@@ -98,6 +94,9 @@ job "facilitator-controller-stage" {
         HODLER_CONTRACT_ADDRESS="{{ key "hodler/sepolia/stage/address" }}"
         {{- range service "validator-stage-mongo|any" }}
         MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-stage2"
+        {{- end }}
+        {{- range service "hyperbeam-stage-node|any" }}
+        HB_URL="http://{{ .Address }}:{{ .Port }}"
         {{- end }}
         {{- range service "facilitator-controller-stage-redis-master|any" }}
         REDIS_MASTER_NAME="{{ .Name }}"
