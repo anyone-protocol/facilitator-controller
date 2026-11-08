@@ -1,7 +1,7 @@
 variable "commit_sha" {
   type        = string
   description = "The git commit SHA to use for the runtime image tag"
-  default     = "95177b149e13317780fdb1fba2778009381217ab"
+  default     = "51d96a2e749a9273e43445455035a25ceffbe0db"
 }
 
 job "facilitator-controller-stage" {
@@ -49,7 +49,7 @@ job "facilitator-controller-stage" {
         FACILITY_CONTRACT_DEPLOYED_BLOCK="9000000"
         USE_HODLER="true"
         USE_FACILITY="false"
-        HODLER_CONTRACT_DEPLOYED_BLOCK="9170000"
+        HODLER_CONTRACT_DEPLOYED_BLOCK="12090000"
         IS_LOCAL_LEADER="true"
         CPU_COUNT="1"
         CONSUL_HOST="${NOMAD_IP_http}"
