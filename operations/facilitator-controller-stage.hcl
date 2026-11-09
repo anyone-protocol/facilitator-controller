@@ -1,7 +1,7 @@
 variable "commit_sha" {
   type        = string
   description = "The git commit SHA to use for the runtime image tag"
-  default     = "51d96a2e749a9273e43445455035a25ceffbe0db"
+  default     = "8614932ccc3180250dbbcea613715e57ae1ae0fa"
 }
 
 job "facilitator-controller-stage" {
