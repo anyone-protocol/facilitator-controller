@@ -1,7 +1,7 @@
 variable "commit_sha" {
   type        = string
   description = "The git commit SHA to use for the runtime image tag"
-  default     = "95177b149e13317780fdb1fba2778009381217ab"
+  default     = "8614932ccc3180250dbbcea613715e57ae1ae0fa"
 }
 
 job "facilitator-controller-live" {
@@ -47,10 +47,6 @@ job "facilitator-controller-live" {
         DO_CLEAN="true"
         # FACILITY_CONTRACT_DEPLOYED_BLOCK="5674945"
         FACILITY_CONTRACT_DEPLOYED_BLOCK="24025391"
-        # Our own HyperBEAM node — replaces CU_URL (D17). The edge whitelists
-        # `/~meta@1.0` and `^/{contract-pid}`, covering both the `~process@1.0/now/...`
-        # reads and the `~process@1.0/push` writes.
-        HB_URL="https://hb.anyone.tech"
         USE_HODLER="true"
         USE_FACILITY="false"
         # The mainnet Hodler proxy was created at 24025391).
@@ -67,6 +63,24 @@ job "facilitator-controller-live" {
       }
 
       consul {}
+
+      template {
+        data = <<-EOH
+        {{- with secret "kv/live-protocol/facilitator-controller-live" }}
+        {{- $user := .Data.data.MONGO_USER }}
+        {{- $pass := .Data.data.MONGO_PASS }}
+        {{- range service "validator-live-mongo|any" }}
+        MONGO_URI="mongodb://{{ $user }}:{{ $pass }}@{{ .Address }}:{{ .Port }}/facilitator-controller-ethereum"
+        {{- end }}
+        {{- end }}
+        EOH
+        destination = "secrets/mongo.env"
+        env         = true
+        wait {
+          min = "30s"
+          max = "90s"
+        }
+      }
 
       template {
         data = <<-EOH
@@ -89,6 +103,7 @@ job "facilitator-controller-live" {
         RELAY_REWARDS_CONTROLLER_KEY="{{.Data.data.RELAY_REWARDS_CONTROLLER_KEY}}"
 
         CONSUL_TOKEN_CONTROLLER_CLUSTER="{{.Data.data.CONSUL_TOKEN_CONTROLLER_CLUSTER}}"
+        REDIS_PASSWORD="{{ .Data.data.REDIS_PASSWORD }}"
         {{ end }}
         EOH
         destination = "secrets/keys.env"
@@ -101,8 +116,8 @@ job "facilitator-controller-live" {
         STAKING_REWARDS_PROCESS_ID="{{ key "smart-contracts/live/staking-rewards-address" }}"
         TOKEN_CONTRACT_ADDRESS="{{ key "ator-token/ethereum/live/address" }}"
         HODLER_CONTRACT_ADDRESS="{{ key "hodler/ethereum/live/address" }}"
-        {{- range service "validator-live-mongo|any" }}
-        MONGO_URI="mongodb://{{ .Address }}:{{ .Port }}/facilitator-controller-ethereum"
+        {{- range service "hyperbeam-live-node|any" }}
+        HB_URL="http://{{ .Address }}:{{ .Port }}"
         {{- end }}
         {{- range service "facilitator-controller-live-redis-master|any" }}
         REDIS_MASTER_NAME="{{ .Name }}"
