@@ -93,10 +93,9 @@ payout.
   stores later is matched to that stored event.
 - Requests sent before a payout, such as a claim pressed twice, are all answered by that one
   payout. A request mined after the payout block is a new claim.
-- On start, the leader stores every `Rewarded` event from the discovery checkpoint to the chain
-  head before the claim workers run. A payout made before the restart therefore counts even
-  when it lies beyond the checkpoint. If that scan fails, start-up fails, so no claim runs
-  against an incomplete record.
+- Because every payout is stored as it confirms, a restart with the discovery checkpoint behind
+  the chain head does not pay a request again. A payout whose record fails to store raises
+  `[alarm=record-reward-failed]` and is stored when discovery reaches its block.
 
 ## Requests with no reward
 
