@@ -6,4 +6,5 @@ export class RecoverRewardsData {
   gas: string
   redeem: boolean
   rewards: ClaimedRewardsData[]
+  transactionHash?: string
 }

@@ -21,6 +21,7 @@ import { ClaimedConfigData } from './dto/claimed-config-data'
 import { RecoverRewardsData } from './dto/recover-rewards-data'
 import { EventsServiceState } from './schemas/events-service-state'
 import { UpdateRewardsEvent } from './schemas/update-rewards-event'
+import { RewardedEvent } from './schemas/rewarded-event'
 import { InjectModel } from '@nestjs/mongoose'
 import { Model } from 'mongoose'
 import { ClusterService } from 'src/cluster/cluster.service'
@@ -115,6 +116,8 @@ export class EventsService
     private readonly eventsServiceState: Model<EventsServiceState>,
     @InjectModel(UpdateRewardsEvent.name)
     private readonly updateRewardsEventModel: Model<UpdateRewardsEvent>,
+    @InjectModel(RewardedEvent.name)
+    private readonly rewardedEventModel: Model<RewardedEvent>,
     private readonly clusterService: ClusterService
   ) {
     super()
@@ -640,6 +643,12 @@ export class EventsService
         }
 
         if (accountString != undefined) {
+          await this.recordUpdateRewardsRequest(
+            accountString,
+            gasEstimate.toString(),
+            redeem,
+            log
+          )
           this.logger.log(`Queueing rewards update for ${accountString}`)
           await this.enqueueUpdateRewards(
             accountString,
@@ -734,15 +743,108 @@ export class EventsService
   }
 
   /**
-   * Marks the originating UpdateRewards event as fulfilled when processing
-   * determined there is no claimable reward. These events never produce an
-   * on-chain Rewarded event, so without this they would be re-discovered and
-   * re-enqueued indefinitely (e.g. an address that paid the claim fee but has
-   * no accrued relay/staking rewards).
+   * Stores a request seen on the live subscription before its claim job runs, so the job can
+   * check it and a payout can mark it fulfilled. Discovery skips a request that is already stored.
+   */
+  private async recordUpdateRewardsRequest(
+    requestingAddress: string,
+    gasEstimate: string,
+    redeem: boolean,
+    log: ethers.EventLog
+  ) {
+    try {
+      await this.updateRewardsEventModel.updateOne(
+        { transactionHash: log.transactionHash, requestingAddress },
+        {
+          $setOnInsert: {
+            eventName: HODLER_EVENTS.UpdateRewards,
+            blockNumber: log.blockNumber,
+            blockHash: log.blockHash,
+            gasEstimate,
+            redeem,
+            fulfilled: false
+          }
+        },
+        { upsert: true }
+      )
+    } catch (error: any) {
+      this.logger.error(
+        `Failed storing UpdateRewards request ${log.transactionHash}` +
+          ` for ${requestingAddress}`,
+        error.stack
+      )
+    }
+  }
+
+  private async isUpdateRewardsRequestFulfilled(
+    requestingAddress: string,
+    transactionHash?: string
+  ): Promise<boolean> {
+    if (!transactionHash) {
+      return false
+    }
+    const request = await this.updateRewardsEventModel.findOne(
+      { transactionHash, requestingAddress },
+      { fulfilled: 1 }
+    )
+    return request?.fulfilled === true
+  }
+
+  /**
+   * Stores the Rewarded event of a confirmed payout and marks every earlier open request from
+   * the address fulfilled by it. A payout settles everything owed at that point, so those
+   * requests are answered even before discovery reaches the payout block.
+   */
+  private async recordRewardPayout(
+    requestingAddress: string,
+    receipt: ethers.TransactionReceipt,
+    redeem: boolean
+  ) {
+    try {
+      await this.rewardedEventModel.updateOne(
+        { transactionHash: receipt.hash, requestingAddress },
+        {
+          $setOnInsert: {
+            eventName: HODLER_EVENTS.Rewarded,
+            blockNumber: receipt.blockNumber,
+            blockHash: receipt.blockHash,
+            redeem
+          }
+        },
+        { upsert: true }
+      )
+      const { modifiedCount } = await this.updateRewardsEventModel.updateMany(
+        {
+          requestingAddress,
+          fulfilled: false,
+          blockNumber: { $lt: receipt.blockNumber }
+        },
+        { fulfilled: true, rewardedEventTransactionHash: receipt.hash }
+      )
+      this.logger.log(
+        `Marked [${modifiedCount}] UpdateRewards requests for ${requestingAddress}` +
+          ` fulfilled by ${receipt.hash}`
+      )
+    } catch (error: any) {
+      this.logger.error(
+        `[alarm=record-reward-failed] Failed recording reward ${receipt.hash}` +
+          ` for ${requestingAddress}`,
+        error.stack
+      )
+    }
+  }
+
+  /**
+   * Marks the originating UpdateRewards event fulfilled when processing closes it without a
+   * payout: nothing is claimable, nothing is owed beyond what the chain already records, or the
+   * contract refuses the reward for a reason a retry cannot change. These requests never
+   * produce an on-chain Rewarded event, so without this they would be re-discovered and
+   * re-enqueued indefinitely.
    */
   private async markUpdateRewardsEventNoReward(
     hodlerAddress: string,
-    transactionHash?: string
+    transactionHash?: string,
+    reason = 'no reward'
   ) {
     if (!transactionHash) {
       this.logger.debug(
@@ -759,14 +861,14 @@ export class EventsService
       )
       if (result.modifiedCount > 0) {
         this.logger.log(
-          `Marked UpdateRewards event ${transactionHash} fulfilled (no reward)` +
+          `Marked UpdateRewards event ${transactionHash} fulfilled (${reason})` +
             ` for ${hodlerAddress} to stop re-processing`
         )
       }
     } catch (error: any) {
       this.logger.error(
         `Failed marking UpdateRewards event ${transactionHash} fulfilled` +
-          ` (no reward) for ${hodlerAddress}`,
+          ` (${reason}) for ${hodlerAddress}`,
         error.stack
       )
     }
@@ -778,6 +880,16 @@ export class EventsService
       return true
     }
     const hodlerAddress = data[0].address
+
+    if (
+      await this.isUpdateRewardsRequestFulfilled(hodlerAddress, transactionHash)
+    ) {
+      this.logger.log(
+        `UpdateRewards request ${transactionHash} for ${hodlerAddress}` +
+          ` is already fulfilled, not paying it again`
+      )
+      return true
+    }
 
     let stakingRewardAllocation = 0n
     let relayRewardAllocation = 0n
@@ -846,6 +958,16 @@ export class EventsService
           `staking [${stakingRewardAllocation}] - claimed [${claimedStakingRewards}] + ` +
           `relay [${relayRewardAllocation}] - claimed [${claimedRelayRewards}]`
         )
+        const everyReadSucceeded = data.every(
+          (reward) => reward.noReward === true || BigInt(reward.amount) > 0n
+        )
+        if (everyReadSucceeded) {
+          await this.markUpdateRewardsEventNoReward(
+            hodlerAddress,
+            transactionHash,
+            'nothing owed'
+          )
+        }
         return true
       }
 
@@ -929,6 +1051,12 @@ export class EventsService
         this.logger.log(
           `Rewarded [${hodlerAddress}] tx: [${rewardReceipt.hash}]`
         )
+
+        await this.recordRewardPayout(
+          hodlerAddress,
+          rewardReceipt,
+          requestedRedeem
+        )
       } else {
         this.logger.warn(
           `NOT LIVE: Skipped actual reward for ${hodlerAddress} of ` +
@@ -953,6 +1081,11 @@ export class EventsService
         if (isPassable) {
           this.logger.log(
             `Reward tx of ${hodlerAddress} ignored: ${updateError.reason}`
+          )
+          await this.markUpdateRewardsEventNoReward(
+            hodlerAddress,
+            transactionHash,
+            updateError.reason
           )
         } else {
           this.logger.error(
@@ -1050,7 +1183,8 @@ export class EventsService
       retries: EventsService.maxUpdateAllocationRetries,
       gas: cfg.gas,
       redeem: cfg.redeem,
-      rewards: rewards
+      rewards: rewards,
+      transactionHash: cfg.transactionHash
     }
     this.logger.log(
       `Attempting to recover reward job with ${recoverData.retries} ` +

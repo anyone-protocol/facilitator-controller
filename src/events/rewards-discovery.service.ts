@@ -162,6 +162,7 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
       }
 
       if (this.useHodler == 'true') {
+        await this.discoverRewardedEventsToHead()
         this.logger.log('Queueing immediate discovery of hodler events')
         await this.enqueueDiscoverHodlerEventsFlow({ delayJob: 0 })
       } else {
@@ -320,6 +321,23 @@ export class RewardsDiscoveryService implements OnApplicationBootstrap {
         ` and skipped storing [${knownEvents}] previously known` +
         ` out of [${events.length}] total`
     )
+  }
+
+  /**
+   * Stores every Rewarded event from the checkpoint to the chain head. Matching treats a request
+   * without a later stored Rewarded event as unanswered, and a payout made before this process
+   * started can lie beyond the checkpoint, so this runs before the claim workers start.
+   */
+  private async discoverRewardedEventsToHead() {
+    const checkpoint = this.state.lastSafeCompleteBlock
+    if (checkpoint == undefined) {
+      return
+    }
+    const head = await this.evmProviderService.jsonRpcProvider.getBlockNumber()
+    const range = RewardsDiscoveryService.MAX_BLOCK_QUERY_RANGE
+    for (let from = checkpoint; from <= head; from += range + 1) {
+      await this.discoverRewardedEvents(from, Math.min(from + range, head))
+    }
   }
 
   public async matchDiscoveredHodlerEvents(to: ethers.BlockTag) {

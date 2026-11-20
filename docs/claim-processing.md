@@ -35,8 +35,10 @@ up does not touch the leader's work.
 - A discovery flow carries the block it was enqueued with. Cleanup keeps an old flow from
   moving the discovery checkpoint back.
 
-Job ids in the hodler updates queue are prefixed with the requesting address, so the queue
-holds one update attempt per address and transaction.
+Job ids in the hodler updates queue are prefixed with the requesting address and the request
+transaction, so the queue holds one update attempt per request at a time. A completed job is
+removed from the queue, so its id does not stop the request from running again. The request's
+record in MongoDB does, as described under [One payout per request](#one-payout-per-request).
 
 ## Chain writes
 
@@ -77,15 +79,38 @@ read.
 
 A contract rejection arrives as `AoContractError`, not as an HTTP failure.
 
+## One payout per request
+
+An address is paid only in answer to an `UpdateRewards` request, and a payout settles everything
+owed to it at that point. Every request is stored in MongoDB and is answered by at most one
+payout.
+
+- A request that arrives on the live subscription is stored before its claim job is queued.
+  Discovery finds it already stored and skips it.
+- A claim job whose request is already fulfilled does not pay.
+- When a `reward` transaction confirms, its `Rewarded` event is stored, and every open request
+  from that address in an earlier block is marked fulfilled by it. A request that discovery
+  stores later is matched to that stored event.
+- Requests sent before a payout, such as a claim pressed twice, are all answered by that one
+  payout. A request mined after the payout block is a new claim.
+- On start, the leader stores every `Rewarded` event from the discovery checkpoint to the chain
+  head before the claim workers run. A payout made before the restart therefore counts even
+  when it lies beyond the checkpoint. If that scan fails, start-up fails, so no claim runs
+  against an incomplete record.
+
 ## Requests with no reward
 
-An `UpdateRewards` request for an address with nothing to claim never produces a `Rewarded`
-event on chain, so discovery would find it unfulfilled on every cycle. Such a request is marked
-fulfilled in MongoDB.
+A request that ends without a payout never produces a `Rewarded` event on chain, so discovery
+would find it unfulfilled on every cycle. Such a request is marked fulfilled in MongoDB, with
+`noReward` set, when:
 
-- `noReward` is set only when the rewards process reports no rewards for the address. The
-  contract's `No rewards for <address>` rejection is that report.
-- A zero amount caused by a process error, a malformed response, or an exception leaves
-  `noReward` unset.
-- A request is retired only when every reward read reported no rewards. Anything else is left
-  for the next discovery cycle.
+- every reward read reported no rewards for the address. The contract's
+  `No rewards for <address>` rejection is that report.
+- every reward read succeeded and nothing is owed beyond what the chain already records as
+  claimed.
+- the Hodler refuses the reward with `No rewards to claim` or
+  `Insufficient gas budget for hodler account`. The gas budget grows only with a new request,
+  which is queued as a claim of its own.
+
+A zero amount caused by a process error, a malformed response, or an exception does not count
+as a successful read. A request with such a read is left for the next discovery cycle.
