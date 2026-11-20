@@ -113,7 +113,8 @@ export class HodlerUpdatesQueue extends LeaderOnlyWorker {
             const hasPassedRecovery = await this.events.updateClaimedRewards(
               recoverData.rewards,
               recoverData.gas,
-              recoverData.redeem
+              recoverData.redeem,
+              recoverData.transactionHash
             )
             if (!hasPassedRecovery) {
               if (recoverData.retries > 1) {
